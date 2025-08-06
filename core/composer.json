@@ -1,11 +1,14 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
-    "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "name": "magicoli/agnstk-core",
+    "type": "library",
+    "description": "AGNSTK Framework Core - The cross-platform PHP application framework",
     "keywords": [
-        "laravel",
-        "framework"
+        "agnstk",
+        "framework",
+        "cms",
+        "cross-platform",
+        "laravel"
     ],
     "license": "MIT",
     "require": {

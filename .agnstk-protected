@@ -1,0 +1,12 @@
+# AGNSTK Protected Files
+# These files/directories are never overwritten by core updates
+
+src/
+config/app-defaults.php
+deploy/
+public/assets/
+.env
+.env.local
+composer.json
+README.md
+.gitignore
