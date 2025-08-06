@@ -18,7 +18,7 @@ if (file_exists($maintenance = __DIR__.'/storage/framework/maintenance.php')) {
 }
 
 // Register the Composer autoloader...
-require __DIR__.'/vendor/autoload.php';
+require __DIR__.'/core/vendor/autoload.php';
 
 $request = Request::capture();
 
@@ -37,7 +37,7 @@ if ($basePath === '/' || $basePath === '\\') {
 
 // Build the complete base URL
 $baseUrl = $scheme . '://' . $host . $basePath;
-$assetUrl = $baseUrl . '/public';
+$assetUrl = $baseUrl . '/core/public';
 
 // Set environment variables for Laravel configuration
 putenv("APP_URL=" . $baseUrl);
@@ -46,7 +46,7 @@ putenv("ASSET_URL=" . $assetUrl);
 
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */
-$app = require_once __DIR__.'/bootstrap/app.php';
+$app = require_once __DIR__.'/core/bootstrap/app.php';
 
 // Configure Laravel after bootstrapping
 $app->booted(function ($app) use ($baseUrl, $assetUrl) {
@@ -57,7 +57,7 @@ $app->booted(function ($app) use ($baseUrl, $assetUrl) {
 });
 
 // Determine if the application is in maintenance mode...
-if (file_exists($maintenance = __DIR__.'/storage/framework/maintenance.php')) {
+if (file_exists($maintenance = __DIR__.'/core/storage/framework/maintenance.php')) {
     require $maintenance;
 }
 
