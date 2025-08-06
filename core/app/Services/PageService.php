@@ -71,9 +71,6 @@ class PageService {
         $contentId = $page['content_id'] ?? $pageId;
 
         switch ($contentSource) {
-            case 'readme':
-                return self::renderMarkdownFile('README.md');
-                
             case 'block':
                 return self::renderBlockContent($contentId);
                 
@@ -92,11 +89,16 @@ class PageService {
      * Render content from a source file/string, auto-detecting format
      */
     private static function renderSourceContent(string $source): string {
+        // Check if it's a service call (contains @)
+        if (strpos($source, '@') !== false) {
+            return self::callService($source);
+        }
+        
         // Check if it's a file path
         if (self::isFilePath($source)) {
-            $filePath = base_path($source);
+            $filePath = self::resolveSourceFilePath($source);
             
-            if (!File::exists($filePath)) {
+            if (!$filePath || !File::exists($filePath)) {
                 return '<div class="alert alert-warning">File not found: ' . $source . '</div>';
             }
             
@@ -106,7 +108,7 @@ class PageService {
             switch ($extension) {
                 case 'md':
                 case 'markdown':
-                    return self::renderMarkdownFile($source);
+                    return self::renderMarkdownFileFromPath($filePath);
                     
                 case 'html':
                 case 'htm':
@@ -127,6 +129,33 @@ class PageService {
         
         // Default: treat as HTML
         return $source;
+    }
+    
+    /**
+     * Resolve source file path relative to application root
+     */
+    private static function resolveSourceFilePath(string $source): ?string {
+        error_log('DEBUG: Requested source file: ' . $source);
+        // Get the file root from config (defaults to base_path if not set)
+        $fileRoot = config('app.file_root', base_path());
+        
+        $filePath = $fileRoot . '/' . ltrim($source, '/');
+        error_log('DEBUG: Resolved file path: ' . $filePath);
+        
+        if (File::exists($filePath)) {
+            return $filePath;
+        }
+        error_log('DEBUG: File not found: ' . $filePath);        
+
+        return null;
+    }
+    
+    /**
+     * Render markdown from a resolved file path
+     */
+    private static function renderMarkdownFileFromPath(string $filePath): string {
+        $markdown = File::get($filePath);
+        return self::renderMarkdownContent($markdown);
     }
 
     /**

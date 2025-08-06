@@ -12,9 +12,9 @@ class PageController extends Controller {
     public function show(string $pageId) {
         $page = PageService::getPageConfig($pageId);
         
-        if (!$page || !($page['enabled'] ?? false)) {
-            abort(404);
-        }
+        // if (!$page || !($page['enabled'] ?? false)) {
+        //     response(404);
+        // }
 
         // Check authentication if required
         if (($page['auth_required'] ?? false) && !auth()->check()) {
@@ -33,6 +33,7 @@ class PageController extends Controller {
      * Display the home page
      */
     public function home() {
-        return $this->show('about');
+        $homePageId = config('app.home_page', 'hello');
+        return $this->show($homePageId);
     }
 }

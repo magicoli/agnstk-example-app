@@ -18,6 +18,19 @@ return [
 
     'name' => env('APP_NAME', 'AGNSTK – Agnostic Glue for Non-Specific ToolKits'),
     'logo' => env('APP_LOGO', '/images/logo.png'),
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Application File Root
+    |--------------------------------------------------------------------------
+    |
+    | This setting tells AGNSTK services where to look for application files
+    | (like README.md, DEVELOPERS.md, etc.). Should be overridden by the
+    | application's config/app.php file. Defaults to core directory.
+    |
+    */
+
+    'file_root' => env('APP_FILE_ROOT', base_path()),
 
     /*
     |--------------------------------------------------------------------------

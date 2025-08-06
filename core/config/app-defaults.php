@@ -16,11 +16,27 @@ return [
     |
     */
 
+    'site' => [
+        'name' => 'AGNSTK Demo Site',
+        'slogan' => 'One app. Many CMS.',
+        'theme' => 'default',
+        'theme_color' => '#2563eb',
+        'home_page' => 'hello',
+        'logo' => '/images/logo.png',
+        'favicon' => '/images/favicon.ico',
+        'icons' => [
+            'apple_touch_icon' => '/images/apple-touch-icon.png',
+            'android_chrome_192' => '/images/android-chrome-192x192.png',
+            'android_chrome_512' => '/images/android-chrome-512x512.png',
+            'safari_pinned_tab' => '/images/safari-pinned-tab.svg',
+            'web_manifest' => '/manifest.json'
+        ]
+    ],
     'pages' => [
         'about' => [
             'title' => 'About AGNSTK',
-            'slug' => '/',
-            'source' => 'README.md', // Show README content on home page
+            'slug' => 'about',
+            'source' => 'README.md', // Show app README content
             'menu' => [
                 'label' => 'About',
                 'order' => 10,
@@ -30,8 +46,8 @@ return [
         ],
         'developers' => [
             'title' => 'Developers',
-            'slug' => '/developers',
-            'source' => 'DEVELOPERS.md', // Show README content on home page
+            'slug' => 'developers',
+            'source' => 'core/DEVELOPERS.md', // Show core DEVELOPERS content
             'menu' => [
                 // 'menu_id' => 'main',     // If not set, defaults to 'main'
                 // 'label' => 'Developers', // if not set, will use title
@@ -42,12 +58,12 @@ return [
         ],
         
         'demo' => [
-            'title' => 'Block Demo',
-            'slug' => '/demo',
+            'title' => 'Hello',
+            'slug' => 'hello',
             'content_source' => 'service',
-            'content_id' => 'BlockDemoService@render',
+            'content_id' => 'HelloService@render',
             'menu' => [
-                'label' => 'Demo',
+                // 'label' => 'Hello',
                 'order' => 20,
                 'enabled' => true,
             ],
@@ -56,7 +72,7 @@ return [
         
         'dashboard' => [
             'title' => 'Dashboard',
-            'slug' => '/dashboard',
+            'slug' => 'dashboard',
             'content_source' => 'view',
             'content_id' => 'dashboard-content',
             'menu' => [
@@ -81,9 +97,9 @@ return [
     */
 
     'blocks' => [
-        'about' => [
-            'title' => 'About Block',
-            'content' => '<h2>About AGNSTK</h2><p>AGNSTK is an Agnostic Glue for Non-Specific ToolKits that provides a unified interface for managing content across different CMS platforms.</p>',
+        'example_block' => [
+            'title' => 'Example Block',
+            'content' => '<p>Example block content goes here.</p>',
             'enabled' => true,
         ],
     ],
@@ -123,28 +139,7 @@ return [
 //             'manifest' => '/manifest.json'
 //         ]
 //     ],
-//     'site' => [
-//         'name' => 'AGNSTK Demo Site',
-//         'slogan' => 'One app. Many CMS.',
-//         'theme' => 'default',
-//         'theme_color' => '#2563eb',
-//         'home_page' => 'hello',
-//         'menu_pages' => [
-//             'hello',
-//             'pages', // Page showing all pages available through the API
-//             'blocks', // Page showing all blocks available through the API
-//             'shortcodes', // Page showing all shortcodes available through the API
-//         ],
-//         'logo' => '/images/logo.png',
-//         'favicon' => '/images/favicon.ico',
-//         'icons' => [
-//             'apple_touch_icon' => '/images/apple-touch-icon.png',
-//             'android_chrome_192' => '/images/android-chrome-192x192.png',
-//             'android_chrome_512' => '/images/android-chrome-512x512.png',
-//             'safari_pinned_tab' => '/images/safari-pinned-tab.svg',
-//             'web_manifest' => '/manifest.json'
-//         ]
-//     ],
+
 //     'api' => [
 //         'enabled' => true,
 //         'require_auth' => true,

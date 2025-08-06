@@ -13,9 +13,6 @@ Auth::routes();
 // Dynamic page routes based on configuration
 $pages = PageService::getEnabledPages();
 foreach ($pages as $pageId => $page) {
-    // Skip about page as it's handled by home route
-    if ($pageId === 'about') continue;
-    
     $slug = $page['slug'];
     $routeName = $pageId;
     
