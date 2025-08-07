@@ -24,7 +24,7 @@ class PageController extends Controller {
 
         $content = PageService::renderPageContent($pageId);
         
-        return view('content', [
+        return view('page', [
             'title' => $page['title'] ?? null,
             'content' => $content,
         ]);
