@@ -1,6 +1,6 @@
 <?php
 
-namespace YourApp\Services;
+namespace App\Services;
 
 use AGNSTK\Services\BaseService;
 
@@ -13,10 +13,21 @@ class HelloService extends BaseService
     protected static array $provides = [
         'block' => true,           // Enable as a block
         'shortcode' => 'hello',    // Enable as [hello] shortcode  
-        'page' => '/hello',        // Enable as a page at /hello
-        'menu' => 'main',          // Add to main menu
+        'uri' => '/hello/app-conf',        // Enable as a page at /hello
+        'menu' => [
+            'menu_id' => 'main', // Add to main menu
+            'label' => 'Hello',
+            'order' => 20,
+            'enabled' => true, // Ensure menu item is enabled
+        ],
         'api' => true,             // Enable API endpoint
     ];
+
+    public function __construct()
+    {
+        error_log('DEBUG HelloService initializing');
+        parent::__construct();
+    }
 
     /**
      * Main render method - used by all deployment targets
@@ -62,11 +73,7 @@ class HelloService extends BaseService
      */
     public function getMenuConfig(): array
     {
-        return [
-            'label' => 'Hello',
-            'order' => 10,
-            'icon' => 'wave'
-        ];
+        return $provides['menu'] ?? false;
     }
 
     /**

@@ -11,19 +11,11 @@
 */
 
 return [
-    'hello' => [
-        'title' => 'Hello',
-        'uri' => '/',
-        'content_source' => 'service',
-        'content_id' => 'HelloService@render',
-        // 'menu' => true,
-    ],
-
     'about' => [
         'title' => 'About',
-        'uri' => '/about/agnstk',                 // Defaults to key (page id)
+        'uri' => '/',                 // Defaults to key (page id)
         'source' => 'README.md',            // Markdown file to render
-        'menu' => true,                     // boolean, string or array, defaults to true
+        // 'menu' => true,                     // boolean, string or array, defaults to true
         // 'menu' => 'main',                // string: menu_id to add to, defaults to 'main'
         // 'menu' => [                      // array: menu configuration
         //     'menu_id' => 'main',         // Defaults to 'main'
@@ -47,5 +39,16 @@ return [
         'menu' => 'user',
         // 'auth_required' => true,
         'enabled' => 'auth_required', // Only enabled for logged-in users
+    ],
+
+    'hello' => [
+        'content_source' => 'service',
+        'content_id' => 'HelloService@render',
+        'menu' => true,
+    ],
+
+    'hello-md' => [
+        'source' => 'HELLO.md', // Show README content on this page
+        'menu' => true,
     ],
 ];

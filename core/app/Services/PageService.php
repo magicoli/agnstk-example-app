@@ -71,7 +71,6 @@ class PageService {
             error_log("Error retrieving enabled pages: " . $e->getMessage());
             throw new \Error("Error retrieving enabled pages: " . $e->getMessage());
         }
-        error_log('DEBUG: returning pages (' . gettype($pages) . '): ' . print_r($pages, true));
         return $pages ?? [];
     }
 
