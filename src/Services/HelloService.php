@@ -1,10 +1,8 @@
 <?php
 
-namespace App\Services;
+namespace YourApp\Services;
 
-use AGNSTK\Services\BaseService;
-
-class HelloService extends BaseService
+class HelloService
 {
     /**
      * What this service provides
@@ -26,7 +24,6 @@ class HelloService extends BaseService
     public function __construct()
     {
         error_log('DEBUG HelloService initializing');
-        parent::__construct();
     }
 
     /**
@@ -34,11 +31,21 @@ class HelloService extends BaseService
      */
     public function render(): string
     {
-        return view('hello', [
-            'message' => 'Hello from AGNSTK!',
-            'timestamp' => now()->format('Y-m-d H:i:s'),
-            'platform' => $this->getCurrentPlatform()
-        ])->render();
+        try {
+            return view('hello', [
+                'message' => 'Hello from AGNSTK!',
+                'timestamp' => now()->format('Y-m-d H:i:s'),
+                'platform' => $this->getCurrentPlatform()
+            ])->render();
+        } catch (\Exception $e) {
+            // Fallback if view doesn't exist
+            return '<div class="container">
+                <h1>Hello from AGNSTK!</h1>
+                <p>Message: Hello from AGNSTK!</p>
+                <p>Timestamp: ' . now()->format('Y-m-d H:i:s') . '</p>
+                <p>Platform: ' . $this->getCurrentPlatform() . '</p>
+            </div>';
+        }
     }
 
     /**
@@ -73,7 +80,7 @@ class HelloService extends BaseService
      */
     public function getMenuConfig(): array
     {
-        return $provides['menu'] ?? false;
+        return self::$provides['menu'] ?? [];
     }
 
     /**

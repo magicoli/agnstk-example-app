@@ -283,14 +283,33 @@ class PageService {
         // Parse service@method format
         if (strpos($serviceCall, '@') !== false) {
             [$serviceClass, $method] = explode('@', $serviceCall, 2);
-            $fullServiceClass = "App\\Services\\{$serviceClass}";
             
-            if (class_exists($fullServiceClass) && method_exists($fullServiceClass, $method)) {
-                return app($fullServiceClass)->$method();
+            // Try multiple namespaces
+            $possibleClasses = [
+                "App\\Services\\{$serviceClass}",        // Core services
+                "YourApp\\Services\\{$serviceClass}",    // Application services
+            ];
+            
+            foreach ($possibleClasses as $fullServiceClass) {
+                error_log("DEBUG: Checking class: {$fullServiceClass}");
+                if (class_exists($fullServiceClass)) {
+                    error_log("DEBUG: Class exists, checking method: {$method}");
+                    if (method_exists($fullServiceClass, $method)) {
+                        error_log("DEBUG: Method exists, calling service");
+                        return app($fullServiceClass)->$method();
+                    }
+                }
             }
         }
         
         return '<div class="alert alert-warning">Service "' . $serviceCall . '" not found.</div>';
+    }
+
+    /**
+     * Call service method (used for source format)
+     */
+    private static function callService(string $serviceCall): string {
+        return self::renderServiceContent($serviceCall);
     }
 
     /**

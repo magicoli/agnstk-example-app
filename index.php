@@ -20,6 +20,11 @@ if (file_exists($maintenance = __DIR__.'/storage/framework/maintenance.php')) {
 // Register the Composer autoloader...
 require __DIR__.'/core/vendor/autoload.php';
 
+// Also load application autoloader if it exists
+if (file_exists(__DIR__.'/vendor/autoload.php')) {
+    require __DIR__.'/vendor/autoload.php';
+}
+
 $request = Request::capture();
 
 // Detect base URL from the current request for proper asset handling

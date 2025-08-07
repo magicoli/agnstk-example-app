@@ -18,6 +18,14 @@
 - **Blade Templates**: Use Laravel's templating system, extend layouts properly
 - **Routes**: Define in `routes/web.php` using Laravel routing
 - **Database**: Use Eloquent models and migrations
+- **Opening Brackets**: Always on the same line as the function/class definition
+  ```php
+  class ExampleService {
+      public function exampleMethod() {
+          // ...
+      }
+  }
+  ```
 
 ## URL Generation (CRITICAL - Always Follow)
 **NEVER hardcode URLs or use environment-specific logic for URL generation.**
