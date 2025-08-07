@@ -1,5 +1,9 @@
 # AGNSTK Core Framework
 
+[![License: AGPL-v3](https://img.shields.io/badge/License-AGPLv3-yellow.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-777BB4?logo=php)](https://www.php.net/)
+[![CMS Agnostic](https://img.shields.io/badge/CMS-Agnostic-ff69b4)](https://agnstk.org)
+
 This is the **AGNSTK Core Framework** - the foundational library that powers AGNSTK applications.
 
 ⚠️ **This repository should NOT be used directly!** 
