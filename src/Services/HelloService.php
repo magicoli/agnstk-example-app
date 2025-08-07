@@ -11,10 +11,10 @@ class HelloService
     protected static array $provides = [
         'block' => true,           // Enable as a block
         'shortcode' => 'hello',    // Enable as [hello] shortcode  
-        'uri' => '/hello/app-conf',        // Enable as a page at /hello
+        'uri' => '/hello-service',        // Enable as a page at /hello-service
         'menu' => [
             'menu_id' => 'main', // Add to main menu
-            'label' => 'Hello',
+            'label' => 'HelloService',
             'order' => 20,
             'enabled' => true, // Ensure menu item is enabled
         ],
@@ -31,21 +31,39 @@ class HelloService
      */
     public function render(): string
     {
+        $title = 'Hello Service';
+        $content = 'Hello from ' . __METHOD__;
+        $timestamp = now()->format('Y-m-d H:i:s');
+        $platform = $this->getCurrentPlatform();
         try {
             return view('hello', [
-                'message' => 'Hello from AGNSTK!',
-                'timestamp' => now()->format('Y-m-d H:i:s'),
-                'platform' => $this->getCurrentPlatform()
+                'title' => $title,
+                'content' => $content,
+                'timestamp' => $timestamp,
+                'platform' => $platform,
             ])->render();
         } catch (\Exception $e) {
-            // Fallback if view doesn't exist
-            return '<div class="container">
-                <h1>Hello from AGNSTK!</h1>
-                <p>Message: Hello from AGNSTK!</p>
-                <p>Timestamp: ' . now()->format('Y-m-d H:i:s') . '</p>
-                <p>Platform: ' . $this->getCurrentPlatform() . '</p>
-            </div>';
+            $errorMessage = (config('app.debug')) 
+            ? sprintf(
+                '<hr><details><summary>%s</summary><pre>%s</pre></details>',
+                __('Debug Information'),
+                htmlspecialchars((string) $e, ENT_QUOTES, 'UTF-8')
+            ) : '';
+
+            // return '<h1>Error</h1>';
+            return sprintf(
+                '<h1>%s</h1>
+                <p>Message: %s</p>
+                <p>Timmestamp: %s</p>
+                <p>Platform: %s</p>%s',
+                $title . ' (Errror)',
+                $content,
+                $timestamp,
+                $platform,
+                $errorMessage
+            );
         }
+
     }
 
     /**

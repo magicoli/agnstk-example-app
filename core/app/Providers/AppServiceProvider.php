@@ -14,8 +14,37 @@ class AppServiceProvider extends ServiceProvider {
         // This allows us to use config('app.app_root') everywhere without fallbacks
         $this->configureAppRoot();
         
-        // Register application services
-        $this->app->singleton(\YourApp\Services\HelloService::class);
+        // Register core services
+        $this->app->singleton(\App\Services\ShortcodeService::class);
+        
+        // Discover and register application services
+        $this->discoverAndRegisterServices();
+    }
+    
+    /**
+     * Discover services in src/Services/ and register them with Laravel
+     */
+    private function discoverAndRegisterServices(): void {
+        $appRoot = config('app.app_root');
+        $servicesPath = $appRoot . '/src/Services';
+        
+        if (!is_dir($servicesPath)) {
+            return;
+        }
+        
+        // Find all PHP files in Services directory
+        $serviceFiles = glob($servicesPath . '/*.php');
+        
+        foreach ($serviceFiles as $file) {
+            $className = basename($file, '.php');
+            $fullClassName = "YourApp\\Services\\{$className}";
+            
+            // Check if class exists and register it
+            if (class_exists($fullClassName)) {
+                $this->app->singleton($fullClassName);
+                error_log("DEBUG: Registered service {$fullClassName}");
+            }
+        }
     }
 
     /**
@@ -32,6 +61,118 @@ class AppServiceProvider extends ServiceProvider {
     public function boot(): void {
         // Configure global URL handling for root-based serving
         $this->configureGlobalUrls();
+        
+        // Register service features (shortcodes, pages, menus, etc.)
+        $this->registerServiceFeatures();
+    }
+    
+    /**
+     * Register features declared by services in their $provides arrays
+     */
+    private function registerServiceFeatures(): void {
+        $appRoot = config('app.app_root');
+        $servicesPath = $appRoot . '/src/Services';
+        
+        if (!is_dir($servicesPath)) {
+            return;
+        }
+        
+        // Find all PHP files in Services directory
+        $serviceFiles = glob($servicesPath . '/*.php');
+        
+        foreach ($serviceFiles as $file) {
+            $className = basename($file, '.php');
+            $fullClassName = "YourApp\\Services\\{$className}";
+            
+            if (class_exists($fullClassName)) {
+                $this->registerServiceProvides($fullClassName);
+            }
+        }
+    }
+    
+    /**
+     * Register features from a service's $provides array
+     */
+    private function registerServiceProvides(string $serviceClass): void {
+        // Get $provides array using reflection
+        try {
+            $reflection = new \ReflectionClass($serviceClass);
+            if (!$reflection->hasProperty('provides')) {
+                return;
+            }
+            
+            $providesProperty = $reflection->getProperty('provides');
+            $providesProperty->setAccessible(true);
+            $provides = $providesProperty->getValue();
+            
+            if (!is_array($provides)) {
+                return;
+            }
+            
+            error_log("DEBUG: Processing \$provides for {$serviceClass}: " . json_encode($provides));
+            
+            // Register shortcode
+            if (!empty($provides['shortcode'])) {
+                $this->registerShortcode($provides['shortcode'], $serviceClass);
+            }
+            
+            // Register page route
+            if (!empty($provides['uri'])) {
+                $this->registerPageRoute($provides['uri'], $serviceClass);
+            }
+            
+            // Register menu item  
+            if (!empty($provides['menu'])) {
+                $this->registerMenuItem($provides['menu'], $serviceClass);
+            }
+            
+        } catch (\Exception $e) {
+            error_log("ERROR: Failed to process service {$serviceClass}: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Register a shortcode handler
+     */
+    private function registerShortcode(string $shortcode, string $serviceClass): void {
+        // For now, we'll store shortcode registrations in config
+        // Later this can be processed by CMS adapters
+        $shortcodes = config('app.registered_shortcodes', []);
+        $shortcodes[$shortcode] = $serviceClass;
+        config(['app.registered_shortcodes' => $shortcodes]);
+        
+        error_log("DEBUG: Registered shortcode [{$shortcode}] -> {$serviceClass}");
+    }
+    
+    /**
+     * Register a page route
+     */
+    private function registerPageRoute(string $uri, string $serviceClass): void {
+        // Register Laravel route
+        \Illuminate\Support\Facades\Route::get($uri, function() use ($serviceClass) {
+            $service = app($serviceClass);
+            $content = $service->render();
+            
+            return view('service-page', [
+                'title' => class_basename($serviceClass),
+                'content' => $content
+            ]);
+        });
+        
+        error_log("DEBUG: Registered route {$uri} -> {$serviceClass}");
+    }
+    
+    /**
+     * Register a menu item
+     */
+    private function registerMenuItem(array $menuConfig, string $serviceClass): void {
+        // Store menu registrations in config for processing
+        $menus = config('app.registered_menus', []);
+        $menuConfig['service_class'] = $serviceClass;
+        $menus[] = $menuConfig;
+        config(['app.registered_menus' => $menus]);
+        
+        error_log("DEBUG: Registered menu item: " . json_encode($menuConfig));
     }
 
     /**

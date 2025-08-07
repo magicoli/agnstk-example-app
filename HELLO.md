@@ -1,9 +1,15 @@
 # Hello (test markdown)
 
-Test shortcode in markdown:
+As this source is an md files, usual shortcodes are not supposed to be translated.
 
-[hello]
+**Should preserve raw shortcode:** [hello]
 
-Test twign in markdown
+**Might show shortcode converted:** [[hello]]
 
-{{ hello }}
+For simplification, twig-style could be use in .md as a workaround 
+
+**Test twig:** {hello}
+
+**Double twig:** {{hello}}
+
+**Double spaced twig:** {{ hello }}

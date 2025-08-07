@@ -41,13 +41,25 @@ return [
         'enabled' => 'auth_required', // Only enabled for logged-in users
     ],
 
-    'hello' => [
+    'static-content' => [
+        'title' => 'Static Content',
+        'content' => sprintf(
+            '<p>%s</p><p>%s</p>',
+            'This is a static page registered directly from config.',
+            'It can be customized in the configuration file.',
+            'Normal shortcode should be expanded: [hello] (end of shortcode)',
+        ),
+        'menu' => true,
+    ],
+
+    'rendered-service' => [
+        'title' => 'Rendered Service',
         'content_source' => 'service',
         'content_id' => 'HelloService@render',
         'menu' => true,
     ],
 
-    'hello-md' => [
+    'hello-page-md' => [
         'source' => 'HELLO.md', // Show README content on this page
         'menu' => true,
     ],

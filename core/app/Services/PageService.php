@@ -81,6 +81,7 @@ class PageService {
         $pages = self::getEnabledPages();
         $menuItems = [];
 
+        // Process menu items from page config
         foreach ($pages as $pageId => $page) {
             if (isset($page['menu']) && ($page['menu']['enabled'] ?? false)) {
                 $menuItems[] = [
@@ -92,11 +93,52 @@ class PageService {
                 ];
             }
         }
+        
+        // Process menu items from service registrations
+        $registeredMenus = config('app.registered_menus', []);
+        foreach ($registeredMenus as $menuConfig) {
+            if ($menuConfig['enabled'] ?? false) {
+                // Get service URI from the service class
+                $serviceUri = self::getServiceUri($menuConfig['service_class']);
+                
+                $menuItems[] = [
+                    'pageId' => class_basename($menuConfig['service_class']),
+                    'label' => $menuConfig['label'] ?? class_basename($menuConfig['service_class']),
+                    'url' => base_url($serviceUri),
+                    'order' => $menuConfig['order'] ?? 10,
+                    'auth_required' => $menuConfig['auth_required'] ?? false,
+                    'service_class' => $menuConfig['service_class'],
+                ];
+            }
+        }
 
         // Sort by order
         usort($menuItems, fn($a, $b) => $a['order'] <=> $b['order']);
 
         return $menuItems;
+    }
+    
+    /**
+     * Get URI for a service class by checking its $provides array
+     */
+    private static function getServiceUri(string $serviceClass): string {
+        try {
+            $reflection = new \ReflectionClass($serviceClass);
+            if ($reflection->hasProperty('provides')) {
+                $providesProperty = $reflection->getProperty('provides');
+                $providesProperty->setAccessible(true);
+                $provides = $providesProperty->getValue();
+                
+                if (is_array($provides) && !empty($provides['uri'])) {
+                    return $provides['uri'];
+                }
+            }
+        } catch (\Exception $e) {
+            error_log("ERROR: Failed to get URI for service {$serviceClass}: " . $e->getMessage());
+        }
+        
+        // Fallback: generate URI from class name
+        return '/' . strtolower(str_replace('Service', '', class_basename($serviceClass)));
     }
 
     /**
@@ -241,6 +283,10 @@ class PageService {
      * Render markdown content as HTML
      */
     private static function renderMarkdownContent(string $markdown): string {
+        // Process shortcodes before markdown conversion
+        $shortcodeService = app(\App\Services\ShortcodeService::class);
+        $markdown = $shortcodeService->processShortcodes($markdown);
+        
         // Configure environment with GitHub-flavored markdown
         $environment = new Environment([
             'html_input' => 'strip',
