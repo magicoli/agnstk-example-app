@@ -154,7 +154,7 @@ add_shortcode('yourapp_hello', function() {
 
 add_page('yourapp_hello', [
     'title' => 'Hello',
-    'slug' => '/hello',
+    'uri' => '/hello',
     'callback' => '\YourApp\Services\Hello::view',
     'menu' => [
         'menu_id' => 'main',

@@ -42,7 +42,7 @@ $assetUrl = $baseUrl . '/core/public';
 // Set environment variables for Laravel configuration
 putenv("APP_URL=" . $baseUrl);
 putenv("ASSET_URL=" . $assetUrl);
-
+putenv("APP_ROOT=" . __DIR__);
 
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */

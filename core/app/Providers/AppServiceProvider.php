@@ -10,8 +10,7 @@ class AppServiceProvider extends ServiceProvider {
      * Register any application services.
      */
     public function register(): void {
-        // Load application configuration if it exists
-        $this->loadApplicationConfig();
+        //
     }
 
     /**
@@ -20,23 +19,6 @@ class AppServiceProvider extends ServiceProvider {
     public function boot(): void {
         // Configure global URL handling for root-based serving
         $this->configureGlobalUrls();
-    }
-
-    /**
-     * Load application configuration files and merge with core config
-     */
-    private function loadApplicationConfig(): void {
-        $appRoot = dirname(base_path());
-        $appConfigPath = $appRoot . '/config/app.php';
-        
-        if (file_exists($appConfigPath)) {
-            $appConfig = require $appConfigPath;
-            
-            // Merge app config into the core app config
-            foreach ($appConfig as $key => $value) {
-                config(["app.{$key}" => $value]);
-            }
-        }
     }
 
     /**

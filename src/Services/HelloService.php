@@ -51,7 +51,7 @@ class HelloService extends BaseService
     {
         return [
             'title' => 'Hello Page',
-            'slug' => '/hello',
+            'uri' => '/hello',
             'template' => 'hello',
             'meta_description' => 'Hello World example page'
         ];

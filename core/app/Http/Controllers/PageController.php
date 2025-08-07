@@ -11,9 +11,10 @@ class PageController extends Controller {
      */
     public function show(string $pageId) {
         $page = PageService::getPageConfig($pageId);
-        
+
+        // Not desirable here, it is already handled in PageService and would override the true original error message
         // if (!$page || !($page['enabled'] ?? false)) {
-        //     response(404);
+        //     abort(404);
         // }
 
         // Check authentication if required
@@ -24,16 +25,9 @@ class PageController extends Controller {
         $content = PageService::renderPageContent($pageId);
         
         return view('content', [
-            'title' => $page['title'],
+            'title' => $page['title'] ?? null,
             'content' => $content,
         ]);
     }
 
-    /**
-     * Display the home page
-     */
-    public function home() {
-        $homePageId = config('app.home_page', 'hello');
-        return $this->show($homePageId);
-    }
 }

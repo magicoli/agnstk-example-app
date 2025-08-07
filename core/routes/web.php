@@ -13,17 +13,17 @@ Auth::routes();
 // Dynamic page routes based on configuration
 $pages = PageService::getEnabledPages();
 foreach ($pages as $pageId => $page) {
-    $slug = $page['slug'];
+    $uri = $page['uri'];
     $routeName = $pageId;
     
     // Handle authentication requirement
     if ($page['auth_required'] ?? false) {
-        Route::get($slug, [PageController::class, 'show'])
+        Route::get($uri, [PageController::class, 'show'])
             ->name($routeName)
             ->middleware('auth')
             ->defaults('pageId', $pageId);
     } else {
-        Route::get($slug, [PageController::class, 'show'])
+        Route::get($uri, [PageController::class, 'show'])
             ->name($routeName)
             ->defaults('pageId', $pageId);
     }

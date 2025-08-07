@@ -16,9 +16,19 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'AGNSTK – Agnostic Glue for Non-Specific ToolKits'),
+    'name' => env('APP_NAME', 'AGNSTK'),
+    'slogan' => env('APP_SLOGAN', 'Agnostic Glue for Non-Specific ToolKits'),
     'logo' => env('APP_LOGO', '/images/logo.png'),
-    
+    'favicon' => env('APP_LOGO', '/images/favicon.ico'),
+    'icons' => [
+        'apple_touch_icon' => '/images/apple-touch-icon.png',
+        'android_chrome_192' => '/images/android-chrome-192x192.png',
+        'android_chrome_512' => '/images/android-chrome-512x512.png',
+        'safari_pinned_tab' => '/images/safari-pinned-tab.svg',
+        'web_manifest' => '/manifest.json'
+    ],
+    'theme' => 'default',
+
     /*
     |--------------------------------------------------------------------------
     | Application File Root
@@ -30,7 +40,7 @@ return [
     |
     */
 
-    'file_root' => env('APP_FILE_ROOT', base_path()),
+    'app_root' => env('APP_ROOT', base_path()),
 
     /*
     |--------------------------------------------------------------------------

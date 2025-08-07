@@ -13,16 +13,66 @@ class PageService {
      * Get page configuration
      */
     public static function getPageConfig(string $pageId): ?array {
-        $pages = config('app-defaults.pages', []);
-        return $pages[$pageId] ?? null;
+        $page = config("pages.$pageId", null);
+        // Sanitize and set defaults
+        if (!empty($page)) {
+            $page = array_merge([
+                'enabled' => true, // Default to enabled
+                'uri' => $pageId, // Default uri to pageId
+                'title' => ucfirst($pageId), // Default title to capitalized pageId
+                'enabled' => true, // Default enabled to true
+            ], $page);
+
+            if(is_string($page['enabled'])) {
+                switch ($page['enabled']) {
+                    case 'logged_in':
+                        $page['enabled'] = auth()->check();
+                        break;
+                    case 'logged_out':
+                    case 'guest':
+                        $page['enabled'] = !auth()->check();
+                        break;
+                    case 'auth_required':
+                        // enable page and set auth_required to true
+                        $page['enabled'] = true;
+                        $page['auth_required'] = true;
+                        break;
+                    default:
+                        $page['enabled'] = false; // Default to false if not recognized
+                }
+            }
+
+            $menu = $page['menu'] ?? false;
+            $menu = is_bool($menu) ? ['enabled' => $menu] : $menu;
+            $menu = is_string($menu) ? ['menu_id' => $menu, 'enabled' => true] : $menu;
+            $menu = is_array($menu) ? $menu : [];
+
+            $page['menu'] = array_merge([
+                'label' => $page['title'] ?? $pageId, // Default label to title or capitalized pageId
+                'order' => 10, // Default order if not set
+                'enabled' => $page['auth_required'] ?? false, // Default auth requirement to false
+            ], $menu);
+        }
+        return $page;
     }
 
     /**
      * Get all enabled pages
      */
     public static function getEnabledPages(): array {
-        $pages = config('app-defaults.pages', []);
-        return array_filter($pages, fn($page) => $page['enabled'] ?? false);
+        try {
+            $pages = config('pages', []);
+            $app_defaults_pages = config('app-defaults.pages', []);
+            foreach($pages as $pageId => $page) {
+                $pages[$pageId] = self::getPageConfig($pageId);
+            }
+            $pages = array_filter($pages, fn($page) => $page['enabled'] ?? false);
+        } catch (\Error $e) {
+            error_log("Error retrieving enabled pages: " . $e->getMessage());
+            throw new \Error("Error retrieving enabled pages: " . $e->getMessage());
+        }
+        error_log('DEBUG: returning pages (' . gettype($pages) . '): ' . print_r($pages, true));
+        return $pages ?? [];
     }
 
     /**
@@ -37,7 +87,7 @@ class PageService {
                 $menuItems[] = [
                     'pageId' => $pageId,
                     'label' => $page['menu']['label'] ?? $page['title'],
-                    'url' => base_url($page['slug']),
+                    'url' => base_url($page['uri']),
                     'order' => $page['menu']['order'] ?? 10, // Default order if not set
                     'auth_required' => $page['menu']['auth_required'] ?? false,
                 ];
@@ -56,8 +106,11 @@ class PageService {
     public static function renderPageContent(string $pageId): string {
         $page = self::getPageConfig($pageId);
         
-        if (!$page || !($page['enabled'] ?? false)) {
-            return '<div class="alert alert-warning">Page not found or disabled.</div>';
+        if (!$page) {
+            abort(404);
+        }
+        if (!($page['enabled'] ?? false)) {
+            abort(403);
         }
 
         // Handle both old 'source' format and new 'content_source' format
@@ -135,17 +188,14 @@ class PageService {
      * Resolve source file path relative to application root
      */
     private static function resolveSourceFilePath(string $source): ?string {
-        error_log('DEBUG: Requested source file: ' . $source);
         // Get the file root from config (defaults to base_path if not set)
-        $fileRoot = config('app.file_root', base_path());
+        $appRoot = config('app.app_root', base_path());
         
-        $filePath = $fileRoot . '/' . ltrim($source, '/');
-        error_log('DEBUG: Resolved file path: ' . $filePath);
-        
+        $filePath = $appRoot . '/' . ltrim($source, '/');
+
         if (File::exists($filePath)) {
             return $filePath;
         }
-        error_log('DEBUG: File not found: ' . $filePath);        
 
         return null;
     }
@@ -215,11 +265,13 @@ class PageService {
      * Render block content
      */
     private static function renderBlockContent(string $blockId): string {
-        $blocks = config('app-defaults.blocks', []);
-        $block = $blocks[$blockId] ?? null;
-        
-        if (!$block || !($block['enabled'] ?? false)) {
-            return '<div class="alert alert-warning">Block "' . $blockId . '" not found or disabled.</div>';
+        $blockConfig = config('blocks.' . $blockId, []);
+        if(empty($blockConfig) || !($blockConfig['enabled'] ?? false)) {
+            // If debug enabled, return debug message, otherwise empty content
+            if (config('app.debug', false)) {
+                return '<div class="alert alert-warning">Block "' . $blockId . '" not found or disabled.</div>';
+            }
+            return '';
         }
 
         return '<div class="block-content">' . ($block['content'] ?? '') . '</div>';

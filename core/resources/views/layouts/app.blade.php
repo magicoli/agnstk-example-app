@@ -39,11 +39,11 @@
                             $menuItems = \App\Services\PageService::getMenuItems();
                         @endphp
                         @foreach($menuItems as $item)
-                            @if(!($item['auth_required'] ?? false) || auth()->check())
+                            {{-- @if(!($item['auth_required'] ?? false) || auth()->check()) --}}
                                 <li class="nav-item">
                                     <a class="nav-link" href="{{ $item['url'] }}">{{ $item['label'] }}</a>
                                 </li>
-                            @endif
+                            {{-- @endif --}}
                         @endforeach
                     </ul>
 
