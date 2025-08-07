@@ -291,13 +291,8 @@ class PageService {
             ];
             
             foreach ($possibleClasses as $fullServiceClass) {
-                error_log("DEBUG: Checking class: {$fullServiceClass}");
-                if (class_exists($fullServiceClass)) {
-                    error_log("DEBUG: Class exists, checking method: {$method}");
-                    if (method_exists($fullServiceClass, $method)) {
-                        error_log("DEBUG: Method exists, calling service");
-                        return app($fullServiceClass)->$method();
-                    }
+                if (class_exists($fullServiceClass) && method_exists($fullServiceClass, $method)) {
+                    return app($fullServiceClass)->$method();
                 }
             }
         }
