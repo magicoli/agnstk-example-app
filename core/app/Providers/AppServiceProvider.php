@@ -10,8 +10,20 @@ class AppServiceProvider extends ServiceProvider {
      * Register any application services.
      */
     public function register(): void {
+        // Set app.app_root from bundle config as soon as config is available
+        // This allows us to use config('app.app_root') everywhere without fallbacks
+        $this->configureAppRoot();
+        
         // Register application services
         $this->app->singleton(\YourApp\Services\HelloService::class);
+    }
+
+    /**
+     * Configure app_root from bundle config with proper fallback
+     */
+    private function configureAppRoot(): void {
+        $appRoot = config('bundle.app_root', config('app.app_root', dirname(base_path())));
+        config(['app.app_root' => env('APP_ROOT', $appRoot)]);
     }
 
     /**

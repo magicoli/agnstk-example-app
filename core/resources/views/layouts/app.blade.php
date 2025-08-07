@@ -95,7 +95,7 @@
 
         <footer class="bg-white text-center text-lg-start">
             <div class="text-center p-3">
-                © {{ date('Y') }} {{ config('app.name', 'AGNSTK (debug, fallback from app.blade.php)') }}. All rights reserved.
+                © {{ date('Y') }} {{ config('app.name', 'AGNSTK (debug, fallback from app.blade.php)') }} {{ config('app.version') }}. All rights reserved.
             </div>
         </footer>
     </div>

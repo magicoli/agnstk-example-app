@@ -35,19 +35,18 @@ $host = $request->getHttpHost();
 $scriptName = $request->getScriptName();
 
 // Extract the base path (handles subdirectory installations like /agnstk/)
-$basePath = dirname($scriptName);
-if ($basePath === '/' || $basePath === '\\') {
-    $basePath = '';
+$urlBasePath = dirname($scriptName);
+if ($urlBasePath === '/' || $urlBasePath === '\\') {
+    $urlBasePath = '';
 }
 
 // Build the complete base URL
-$baseUrl = $scheme . '://' . $host . $basePath;
+$baseUrl = $scheme . '://' . $host . $urlBasePath;
 $assetUrl = $baseUrl . '/core/public';
 
 // Set environment variables for Laravel configuration
 putenv("APP_URL=" . $baseUrl);
 putenv("ASSET_URL=" . $assetUrl);
-putenv("APP_ROOT=" . __DIR__);
 
 // Bootstrap Laravel and handle the request...
 /** @var Application $app */

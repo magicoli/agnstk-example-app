@@ -187,8 +187,9 @@ class PageService {
      * Resolve source file path relative to application root
      */
     private static function resolveSourceFilePath(string $source): ?string {
-        // Get the file root from config (defaults to base_path if not set)
-        $appRoot = config('app.app_root', base_path());
+        // Get the application root from bundle config
+        // $appRoot = config('bundle.app_root', dirname(base_path()));
+        $appRoot = config('app.app_root');
         
         $filePath = $appRoot . '/' . ltrim($source, '/');
 

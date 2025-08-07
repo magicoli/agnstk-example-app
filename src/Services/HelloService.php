@@ -91,18 +91,20 @@ class HelloService
         return [
             'message' => 'Hello from AGNSTK API!',
             'timestamp' => now()->toISOString(),
-            'version' => '1.0.0'
+            'version' => config('api.version', config('app.version', '1.0.0')), // Use API version or app version
         ];
     }
 
     /**
      * Detect current platform (for demonstration)
+     * Should be a global method
      */
     private function getCurrentPlatform(): string
     {
+        // Ultimately, platform will be set by the adapter, this is temporary
         if (defined('WP_VERSION')) return 'WordPress';
         if (defined('DRUPAL_VERSION')) return 'Drupal';
         if (class_exists('October\Rain\Foundation\Application')) return 'October CMS';
-        return 'Laravel Standalone';
+        return config('app.platform', 'Standalone'); // Default to Standalone
     }
 }

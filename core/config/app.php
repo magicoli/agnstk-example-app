@@ -3,6 +3,8 @@
  * Core application defaults.
  */
 
+$core_version = '1.0.1';
+
 return [
 
     /*
@@ -16,7 +18,9 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'AGNSTK'),
+    'name' => env('APP_NAME', config('bundle.name', 'AGNSTK')),
+    'version' => env('APP_VERSION', config('bundle.version', $core_version)),
+    'core_version' => $core_version,
     'slogan' => env('APP_SLOGAN', 'Agnostic Glue for Non-Specific ToolKits'),
     'logo' => env('APP_LOGO', '/images/logo.png'),
     'favicon' => env('APP_LOGO', '/images/favicon.ico'),
@@ -28,19 +32,6 @@ return [
         'web_manifest' => '/manifest.json'
     ],
     'theme' => 'default',
-
-    /*
-    |--------------------------------------------------------------------------
-    | Application File Root
-    |--------------------------------------------------------------------------
-    |
-    | This setting tells AGNSTK services where to look for application files
-    | (like README.md, DEVELOPERS.md, etc.). Should be overridden by the
-    | application's config/app.php file. Defaults to core directory.
-    |
-    */
-
-    'app_root' => env('APP_ROOT', base_path()),
 
     /*
     |--------------------------------------------------------------------------
