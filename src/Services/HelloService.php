@@ -27,43 +27,119 @@ class HelloService
     }
 
     /**
-     * Main render method - used by all deployment targets
+     * Main render method - context-aware rendering
      */
-    public function render(): string
+    public function render(string $context = 'html'): string
     {
-        $title = 'Hello Service';
-        $content = 'Hello from ' . __METHOD__;
-        $timestamp = now()->format('Y-m-d H:i:s');
-        $platform = $this->getCurrentPlatform();
+        $data = [
+            'message' => 'Hello from AGNSTK!',
+            'timestamp' => now()->format('Y-m-d H:i:s'),
+            'platform' => $this->getCurrentPlatform(),
+            'title' => 'AGNSTK Hello Service',
+            'icon' => 'bi bi-rocket-takeoff'
+        ];
+
+        return match($context) {
+            'text', 'markdown', 'cli' => $this->renderText($data),
+            'card' => $this->renderCard($data), 
+            default => $this->renderHtml($data)
+        };
+    }
+    
+    /**
+     * Render as HTML card (for shortcodes, blocks)
+     */
+    private function renderCard(array $data): string
+    {
         try {
-            return view('hello', [
-                'title' => $title,
-                'content' => $content,
-                'timestamp' => $timestamp,
-                'platform' => $platform,
+            return view('sections.content-card', [
+                'title' => $data['title'],
+                'icon' => $data['icon'],
+                'content' => $this->getHtmlContent($data)
             ])->render();
         } catch (\Exception $e) {
-            $errorMessage = (config('app.debug')) 
-            ? sprintf(
-                '<hr><details><summary>%s</summary><pre>%s</pre></details>',
-                __('Debug Information'),
-                htmlspecialchars((string) $e, ENT_QUOTES, 'UTF-8')
-            ) : '';
-
-            // return '<h1>Error</h1>';
-            return sprintf(
-                '<h1>%s</h1>
-                <p>Message: %s</p>
-                <p>Timmestamp: %s</p>
-                <p>Platform: %s</p>%s',
-                $title . ' (Errror)',
-                $content,
-                $timestamp,
-                $platform,
-                $errorMessage
-            );
+            return $this->renderFallback($data, $e);
         }
+    }
+    
+    /**
+     * Render as plain HTML (for pages)  
+     */
+    private function renderHtml(array $data): string
+    {
+        return $this->getHtmlContent($data);
+    }
+    
+    /**
+     * Render as text (for markdown, CLI)
+     */
+    private function renderText(array $data): string
+    {
+        return "**{$data['message']}** ({$data['platform']} - {$data['timestamp']})\n\n" .
+               "Available as: Block, Shortcode [hello], Page /hello-service, Menu item, API endpoint\n" .
+               "Deployment targets: Web, Desktop, Mobile, CLI\n" .
+               "Edit src/Services/HelloService.php to customize.";
+    }
+    
+    /**
+     * Get HTML content body
+     */
+    private function getHtmlContent(array $data): string
+    {
+        return '<div class="alert alert-success">
+            <h4>' . htmlspecialchars($data['message']) . '</h4>
+            <p class="mb-2">
+                <strong>Platform:</strong> ' . htmlspecialchars($data['platform']) . '<br>
+                <strong>Generated:</strong> ' . htmlspecialchars($data['timestamp']) . '
+            </p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Available as:</h5>
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-layout-text-window"></i> Block (in page builders)</li>
+                    <li><i class="bi bi-code-square"></i> Shortcode: <code>[hello]</code></li>
+                    <li><i class="bi bi-file-earmark"></i> Page: <a href="' . base_url('/hello-service') . '">/hello-service</a></li>
+                    <li><i class="bi bi-list"></i> Menu item</li>
+                    <li><i class="bi bi-cloud"></i> API endpoint</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5>Deployment targets:</h5>
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-globe"></i> Web application</li>
+                    <li><i class="bi bi-display"></i> Desktop app</li>
+                    <li><i class="bi bi-phone"></i> Mobile app (PWA/Native)</li>
+                    <li><i class="bi bi-terminal"></i> Command line</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <p class="text-muted mb-2">
+                <i class="bi bi-info-circle"></i>
+                Edit <code>src/Services/HelloService.php</code> to customize.
+            </p>
+        </div>';
+    }
+    
+    /**
+     * Fallback rendering when views fail
+     */
+    private function renderFallback(array $data, \Exception $e): string
+    {
+        $errorMessage = config('app.debug') 
+            ? '<hr><details><summary>Debug Information</summary><pre>' . htmlspecialchars((string) $e, ENT_QUOTES, 'UTF-8') . '</pre></details>'
+            : '';
 
+        return '<div class="alert alert-warning">
+            <h4>' . htmlspecialchars($data['title']) . ' (Fallback)</h4>
+            <p>Message: ' . htmlspecialchars($data['message']) . '</p>
+            <p>Timestamp: ' . htmlspecialchars($data['timestamp']) . '</p>
+            <p>Platform: ' . htmlspecialchars($data['platform']) . '</p>
+            ' . $errorMessage . '
+        </div>';
     }
 
     /**

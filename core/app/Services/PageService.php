@@ -283,9 +283,9 @@ class PageService {
      * Render markdown content as HTML
      */
     private static function renderMarkdownContent(string $markdown): string {
-        // Process shortcodes before markdown conversion
+        // Process shortcodes with markdown context (uses {{shortcode}} syntax)
         $shortcodeService = app(\App\Services\ShortcodeService::class);
-        $markdown = $shortcodeService->processShortcodes($markdown);
+        $markdown = $shortcodeService->processShortcodes($markdown, 'markdown');
         
         // Configure environment with GitHub-flavored markdown
         $environment = new Environment([
@@ -304,7 +304,7 @@ class PageService {
         // Post-process to ensure proper Prism.js classes
         $html = preg_replace('/<code class="language-(\w+)"/', '<code class="language-$1"', $html);
         
-        return '<div class="markdown-content">' . $html . '</div>';
+        return view('sections.content-markdown', ['content' => $html])->render();
     }
 
     /**
