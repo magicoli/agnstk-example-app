@@ -52,34 +52,14 @@ agnstk/
 │   ├── Shortcodes/        # Shortcode handlers
 │   ├── Users/             # User management
 │   └── Services/          # Cache, sync, external services, etc.
-├── deploy/                # Deployment targets
-│   ├── desktop/           # Tauri desktop app
-│   │   ├── src-tauri/     # Rust/Tauri configuration
-│   │   └── src/           # Frontend for desktop app
-│   ├── mobile/            # Mobile deployments
-│   │   ├── pwa/           # Progressive Web App
-│   │   └── native/        # Tauri Mobile (iOS/Android)
-│   ├── cli/               # Command-line interface
-│   ├── api/               # REST API for data sync
-│   │   ├── routes/        # API routes
-│   │   └── resources/     # API resources/transformers
-│   └── adapters/          # CMS-specific adapters
-│       ├── drupal/
-│       ├── joomla/
-│       ├── octobercms/
-│       └── wordpress/
-├── app/                   # Laravel core (DO NOT MODIFY)
-│   ├── Http/
-│   ├── Models/
-│   ├── Providers/
-│   ├── Services/
-│   └── helpers.php
-├── config/
-│   └── app-defaults.php   # Only config file developers modify
+├── core/                   # Laravel core (DO NOT MODIFY except core/config/bundle.php)
+│   ├── config/
+|   |   ├── bundle.php     #  (YOUR APP INITIAL SETTINGS)
+|   |   ├── bundle.example.php     # bundle.php template
+│   ...                    # Other core files (DO NOT MODIFY)
 ├── database/
 ├── routes/
-...                        # Other core files (DO NOT MODIFY)
-└── resources/
+...                        
 ```
 
 (Want another CMS or deployment target? Open an issue!)
@@ -121,11 +101,23 @@ Developers can enable any combination of these deployment targets for their appl
 
 ## Installation
 
-* Clone the repo:
+**For new projects:**
+Clone this repository (which includes the core as a git subtree):
+
 ```bash
-git clone https://github.com/magicoli/agnstk.git
-cd agnstk
+git clone https://github.com/magicoli/agnstk.git my-app
+cd my-app
 composer install
+```
+
+**Enable bundle configuration tracking:**
+```bash
+# Remove this line from .gitignore:
+core/config/bundle.php
+
+# Then track your bundle config:
+git add core/config/bundle.php
+git commit -m "Add bundle configuration"
 ```
 
 Then start the development server (Laravel-based standalone app):
@@ -133,6 +125,11 @@ Then start the development server (Laravel-based standalone app):
 composer run dev
 ```
 The app will be available at `http://localhost:8000`.
+
+**To update the core framework:**
+```bash
+git subtree pull --prefix=core https://github.com/magicoli/agnstk-core.git master --squash
+```
 
 ### Example: Hello World
 ```php
@@ -191,7 +188,7 @@ AGNSTK is currently implemented as a **Laravel 12** application with multiple de
 ### Core Features
 - **Laravel 12** framework providing robust AGNSTK core (hands-off for developers)
 - **Configurable objects**: Pages, Menus, Blocks, Shortcodes, Users, Services
-- **Developer-friendly**: Put your code in `src/`, modify only `config/app-defaults.php`
+- **Developer-friendly**: Put your code in `src/`, configure via `core/config/bundle.php`
 - **Bootstrap UI**: Clean, responsive interface for web deployments
 - **Markdown support**: Content rendering with syntax highlighting
 - **Cross-platform deployment**: Same codebase runs on web, desktop, and CLI
