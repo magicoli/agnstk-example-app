@@ -41,14 +41,42 @@ return [
         'enabled' => 'auth_required', // Only enabled for logged-in users
     ],
 
-    'static-content' => [
-        'title' => 'Static Content',
-        'content' => sprintf(
-            '<p>%s</p><p>%s</p>',
-            'This is a static page registered directly from config.',
-            'It can be customized in the configuration file.',
-            'Normal shortcode should be expanded: [hello] (end of shortcode)',
-        ),
+    'static-page' => [
+        'title' => 'Static Page',
+        'content' => '
+            <p>
+                This page is entirely defined in pages config, including its content.
+                It should not be confused with a service or dynamic content.
+            </p>
+            <hr>
+            <p>It could contain any <span class="tag">html code</span> and should be rendered as is.</p>
+            <p>
+                It should be post-procesed like any other page content for shortcodes, or standard 
+                Laravel layout tags.
+            </p>            
+            <p>
+                Post-processing (like shortcodes) must be applied to any block, regardless of the type 
+                of source or the view() used.
+            </p>
+            <p>
+                This is a static page, but it can still use shortcodes, blocks, or any other dynamic content
+                that is registered in the system.
+            </p>
+            <p>
+                We might need to create a Trait for renderable classes, to make sure we have a common default
+                render post-processiig method, applied to the content of render().
+            </p>
+            <div class="col-lg-6 mx-auto card">
+                <div class="card-header">
+                    <h3 class="p-0 m-0">Testing shortcode processing in static HTML:</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-bold">
+                        [hello title="Static Page Hello" class="bg-primary text-white"]
+                    </div>
+                </div>
+            </div>
+        ',
         'menu' => true,
     ],
 

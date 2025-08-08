@@ -20,4 +20,4 @@
     );
 @endphp
 
-{!! view('content', ['content' => $errorContent]) !!}
+{!! view('page', ['content' => $errorContent]) !!}

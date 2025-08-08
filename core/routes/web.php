@@ -27,4 +27,4 @@ foreach ($pages as $pageId => $page) {
             ->name($routeName)
             ->defaults('pageId', $pageId);
     }
-} 
+}

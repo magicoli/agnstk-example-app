@@ -64,6 +64,9 @@ class AppServiceProvider extends ServiceProvider {
         
         // Register service features (shortcodes, pages, menus, etc.)
         $this->registerServiceFeatures();
+        
+        // Register Blade directives for shortcodes
+        $this->registerBladeDirectives();
     }
     
     /**
@@ -94,16 +97,24 @@ class AppServiceProvider extends ServiceProvider {
      * Register features from a service's $provides array
      */
     private function registerServiceProvides(string $serviceClass): void {
-        // Get $provides array using reflection
+        // Get $provides array using provides() method if available, otherwise try reflection
         try {
-            $reflection = new \ReflectionClass($serviceClass);
-            if (!$reflection->hasProperty('provides')) {
-                return;
-            }
+            $provides = [];
             
-            $providesProperty = $reflection->getProperty('provides');
-            $providesProperty->setAccessible(true);
-            $provides = $providesProperty->getValue();
+            // First try to use provides() method
+            if (method_exists($serviceClass, 'provides')) {
+                $provides = $serviceClass::provides();
+            } elseif (method_exists($serviceClass, 'getProvides')) {
+                $provides = $serviceClass::getProvides();
+            } else {
+                // Fallback to reflection for static property
+                $reflection = new \ReflectionClass($serviceClass);
+                if ($reflection->hasProperty('provides')) {
+                    $providesProperty = $reflection->getProperty('provides');
+                    $providesProperty->setAccessible(true);
+                    $provides = $providesProperty->getValue();
+                }
+            }
             
             if (!is_array($provides)) {
                 return;
@@ -151,10 +162,30 @@ class AppServiceProvider extends ServiceProvider {
         // Register Laravel route
         \Illuminate\Support\Facades\Route::get($uri, function() use ($serviceClass) {
             $service = app($serviceClass);
-            $content = $service->render();
             
-            return view('service-page', [
-                'title' => class_basename($serviceClass),
+            // Get page config to determine page title
+            $pageConfig = $service->getPageConfig();
+            $pageTitle = $pageConfig['title'] ?? null;
+            
+            // Get content title (fallback)
+            $contentTitle = $service->getTitle();
+            
+            // Determine final titles
+            $finalPageTitle = $pageTitle ?: $contentTitle; // Page title falls back to content title
+            
+            // If page title and content title are the same, don't show title in content block
+            $shouldShowContentTitle = ($finalPageTitle !== $contentTitle);
+            
+            // Render content with title control
+            $renderOptions = [];
+            if (!$shouldShowContentTitle) {
+                $renderOptions['title'] = null; // Don't show title in block
+            }
+            
+            $content = $service->render($renderOptions);
+            
+            return view('page', [
+                'title' => $finalPageTitle,
                 'content' => $content
             ]);
         });
@@ -211,5 +242,13 @@ class AppServiceProvider extends ServiceProvider {
             // $assetURL = config('app.detected_public_url');
             return $assetURL . ($path ? '/' . ltrim($path, '/') : '');
         });
+    }
+    
+    /**
+     * Register Blade directives for shortcode and service rendering
+     */
+    private function registerBladeDirectives(): void {
+        // Blade directives temporarily disabled to prevent infinite loops
+        // TODO: Implement proper Blade directive syntax
     }
 }

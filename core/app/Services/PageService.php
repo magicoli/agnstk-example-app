@@ -154,6 +154,14 @@ class PageService {
             abort(403);
         }
 
+        // Handle direct HTML content first
+        if (isset($page['content'])) {
+            $content = $page['content'];
+            // Use BlockService for post-processing
+            $blockService = app(\App\Services\BlockService::class);
+            return $blockService->postProcessContent($content, 'html');
+        }
+
         // Handle both old 'source' format and new 'content_source' format
         if (isset($page['source'])) {
             // New generic source format - determine type by file extension or content
@@ -283,10 +291,6 @@ class PageService {
      * Render markdown content as HTML
      */
     private static function renderMarkdownContent(string $markdown): string {
-        // Process shortcodes with markdown context (uses {{shortcode}} syntax)
-        $shortcodeService = app(\App\Services\ShortcodeService::class);
-        $markdown = $shortcodeService->processShortcodes($markdown, 'markdown');
-        
         // Configure environment with GitHub-flavored markdown
         $environment = new Environment([
             'html_input' => 'strip',
@@ -299,12 +303,29 @@ class PageService {
         
         $converter = new MarkdownConverter($environment);
         
-        $html = $converter->convert($markdown);
+        // First convert markdown to HTML
+        $html = $converter->convert($markdown)->getContent();
+        
+        // Use BlockService for post-processing (includes shortcodes and other processing)
+        $blockService = app(\App\Services\BlockService::class);
+        $html = $blockService->postProcessContent($html, 'markdown');
         
         // Post-process to ensure proper Prism.js classes
         $html = preg_replace('/<code class="language-(\w+)"/', '<code class="language-$1"', $html);
         
         return view('sections.content-markdown', ['content' => $html])->render();
+    }
+    
+    /**
+     * Extract the first heading (H1) from markdown content for use as title
+     */
+    public static function extractMarkdownTitle(string $markdown): ?string {
+        // Look for first-level heading (# Title)
+        if (preg_match('/^#\s+(.+)$/m', $markdown, $matches)) {
+            return trim($matches[1]);
+        }
+        
+        return null;
     }
 
     /**

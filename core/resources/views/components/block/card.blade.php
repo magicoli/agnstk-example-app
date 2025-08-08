@@ -1,11 +1,13 @@
-{{-- Card-style content section --}}
+{{-- Card wrapper for content sections --}}
 <div class="card">
+    @if(isset($title))
     <div class="card-header">
-        <h3 class="card-title mb-0">
+        <h4 class="card-title mb-0">
             @if(isset($icon))<i class="{{ $icon }}"></i> @endif
-            {{ $title ?? 'Content' }}
-        </h3>
+            {{ $title }}
+        </h4>
     </div>
+    @endif
     <div class="card-body">
         {!! $content !!}
     </div>
