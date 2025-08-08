@@ -42,7 +42,6 @@ class AppServiceProvider extends ServiceProvider {
             // Check if class exists and register it
             if (class_exists($fullClassName)) {
                 $this->app->singleton($fullClassName);
-                error_log("DEBUG: Registered service {$fullClassName}");
             }
         }
     }
@@ -120,8 +119,6 @@ class AppServiceProvider extends ServiceProvider {
                 return;
             }
             
-            error_log("DEBUG: Processing \$provides for {$serviceClass}: " . json_encode($provides));
-            
             // Register shortcode
             if (!empty($provides['shortcode'])) {
                 $this->registerShortcode($provides['shortcode'], $serviceClass);
@@ -152,7 +149,6 @@ class AppServiceProvider extends ServiceProvider {
         $shortcodes[$shortcode] = $serviceClass;
         config(['app.registered_shortcodes' => $shortcodes]);
         
-        error_log("DEBUG: Registered shortcode [{$shortcode}] -> {$serviceClass}");
     }
     
     /**
@@ -189,8 +185,6 @@ class AppServiceProvider extends ServiceProvider {
                 'content' => $content
             ]);
         });
-        
-        error_log("DEBUG: Registered route {$uri} -> {$serviceClass}");
     }
     
     /**
@@ -203,7 +197,6 @@ class AppServiceProvider extends ServiceProvider {
         $menus[] = $menuConfig;
         config(['app.registered_menus' => $menus]);
         
-        error_log("DEBUG: Registered menu item: " . json_encode($menuConfig));
     }
 
     /**

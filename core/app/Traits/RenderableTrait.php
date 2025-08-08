@@ -9,8 +9,8 @@ trait RenderableTrait {
      * This should be called on all rendered content before final output
      */
     protected function postProcessRender(string $content, string $sourceFormat = 'html'): string {
-        $blockService = app(\App\Services\BlockService::class);
-        return $blockService->postProcessContent($content, $sourceFormat);
+        $block = app(\App\Services\BlockService::class);
+        return $block->postProcessContent($content, $sourceFormat);
     }
     
     /**

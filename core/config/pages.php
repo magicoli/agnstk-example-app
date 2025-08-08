@@ -12,7 +12,7 @@
 
 return [
     'about' => [
-        'title' => 'About',
+        // 'title' => 'About',
         'uri' => '/',                 // Defaults to key (page id)
         'source' => 'README.md',            // Markdown file to render
         // 'menu' => true,                     // boolean, string or array, defaults to true
@@ -34,8 +34,7 @@ return [
     'dashboard' => [
         'title' => 'Dashboard',
         'uri' => '/user/dashboard',
-        'content_source' => 'view',
-        'content_id' => 'dashboard-content',
+        'view' => 'dashboard-content',
         'menu' => 'user',
         // 'auth_required' => true,
         'enabled' => 'auth_required', // Only enabled for logged-in users
@@ -82,8 +81,7 @@ return [
 
     'rendered-service' => [
         'title' => 'Rendered Service',
-        'content_source' => 'service',
-        'content_id' => 'HelloService@render',
+        'callback' => 'HelloService@render',
         'menu' => true,
     ],
 

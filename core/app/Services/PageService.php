@@ -142,49 +142,203 @@ class PageService {
     }
 
     /**
-     * Render page content based on its configuration
+     * Get page configuration including proper title fallback
      */
-    public static function renderPageContent(string $pageId): string {
-        $page = self::getPageConfig($pageId);
+    public function getPageConfiguration(string $slug): array {
+        $pages = config('pages', []);
+        $pageConfig = $pages[$slug] ?? [];
         
-        if (!$page) {
-            abort(404);
+        // Create content block based on different content sources
+        $contentBlock = null;
+        $contentSource = $this->determineContentSource($pageConfig);
+        
+        if ($contentSource) {
+            $block = app(\App\Services\BlockService::class);
+            $contentBlock = $this->createContentBlock($block, $contentSource, $pageConfig, $slug);
         }
-        if (!($page['enabled'] ?? false)) {
-            abort(403);
+        
+        // Determine page title with fallback logic
+        $pageTitle = $pageConfig['title'] ?? null;
+        if (!$pageTitle && $contentBlock && $contentBlock->title) {
+            $pageTitle = $contentBlock->title;
         }
-
-        // Handle direct HTML content first
-        if (isset($page['content'])) {
-            $content = $page['content'];
-            // Use BlockService for post-processing
-            $blockService = app(\App\Services\BlockService::class);
-            return $blockService->postProcessContent($content, 'html');
+        
+        return [
+            'title' => $pageTitle,
+            'description' => $pageConfig['description'] ?? '',
+            'keywords' => $pageConfig['keywords'] ?? '',
+            'content' => $pageConfig['content'] ?? '',
+            'contentBlock' => $contentBlock,
+            'template' => $pageConfig['template'] ?? 'default',
+            'showContentTitle' => $this->shouldShowContentTitle($pageTitle, $contentBlock),
+        ];
+    }
+    
+    /**
+     * Determine what type of content source we have
+     */
+    protected function determineContentSource(array $pageConfig): ?array {
+        if (isset($pageConfig['content'])) {
+            return ['type' => 'content', 'data' => $pageConfig['content']];
         }
-
-        // Handle both old 'source' format and new 'content_source' format
-        if (isset($page['source'])) {
-            // New generic source format - determine type by file extension or content
-            return self::renderSourceContent($page['source']);
+        
+        if (isset($pageConfig['source'])) {
+            return ['type' => 'source', 'data' => $pageConfig['source']];
         }
-
-        // Legacy content_source format
-        $contentSource = $page['content_source'] ?? 'view';
-        $contentId = $page['content_id'] ?? $pageId;
-
-        switch ($contentSource) {
-            case 'block':
-                return self::renderBlockContent($contentId);
+        
+        if (isset($pageConfig['callback'])) {
+            return ['type' => 'callback', 'data' => $pageConfig['callback']];
+        }
+        
+        if (isset($pageConfig['view'])) {
+            return ['type' => 'view', 'data' => $pageConfig['view']];
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Create content block based on source type
+     */
+    protected function createContentBlock($block, array $contentSource, array $pageConfig, string $slug) {
+        $options = [
+            'id' => $slug . '-content',
+            'title' => $pageConfig['content_title'] ?? null,
+        ];
+        
+        switch ($contentSource['type']) {
+            case 'content':
+                // Direct HTML/text content
+                return $block->create($contentSource['data'], $options);
                 
-            case 'service':
-                return self::renderServiceContent($contentId);
+            case 'source':
+                // File source (markdown, etc.)
+                $filePath = $this->resolveFilePath($contentSource['data']);
+                if (file_exists($filePath)) {
+                    return $block->create($filePath, $options);
+                }
+                \Log::warning("Source file not found: {$contentSource['data']} (resolved to: {$filePath})");
+                return null;
+                
+            case 'callback':
+                // Service callback
+                return $this->createCallbackBlock($contentSource['data'], $options);
                 
             case 'view':
-                return self::renderViewContent($contentId);
+                // Laravel view
+                return $this->createViewBlock($contentSource['data'], $options, $pageConfig);
                 
             default:
-                return '<div class="alert alert-warning">Unknown content source: ' . $contentSource . '</div>';
+                return null;
         }
+    }
+    
+    /**
+     * Resolve file path relative to application root
+     */
+    protected function resolveFilePath(string $path): string {
+        // If path is already absolute, return as-is
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+        
+        // First try relative to project root (where HELLO.md is located)
+        $projectRoot = dirname(base_path());
+        $fullPath = $projectRoot . '/' . $path;
+        if (file_exists($fullPath)) {
+            return $fullPath;
+        }
+        
+        // Fallback to application root
+        $appPath = base_path($path);
+        if (file_exists($appPath)) {
+            return $appPath;
+        }
+        
+        // Return the project root path for logging
+        return $fullPath;
+    }
+    
+    /**
+     * Create a block from service callback
+     */
+    protected function createCallbackBlock(string $callback, array $options) {
+        // Parse callback string like "HelloService@render"
+        [$serviceClass, $method] = explode('@', $callback, 2);
+        
+        try {
+            // Try to resolve with full namespace first
+            if (!class_exists($serviceClass)) {
+                // Try with YourApp namespace (our service namespace)
+                $namespacedClass = "YourApp\\Services\\{$serviceClass}";
+                if (class_exists($namespacedClass)) {
+                    $serviceClass = $namespacedClass;
+                }
+            }
+            
+            // Resolve service instance
+            $service = app($serviceClass);
+            
+            if (!method_exists($service, $method)) {
+                \Log::error("Method {$method} not found on {$serviceClass}");
+                return null;
+            }
+            
+            // Call the method and get content
+            $content = $service->$method();
+            
+            // Create block with the rendered content
+            $block = app(\App\Services\BlockService::class);
+            return $block->create($content, $options);
+            
+        } catch (\Exception $e) {
+            \Log::error("Error calling {$callback}: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Create a block from Laravel view
+     */
+    protected function createViewBlock(string $viewName, array $options, array $pageConfig) {
+        try {
+            // Check if view exists
+            if (!view()->exists($viewName)) {
+                \Log::warning("View {$viewName} not found, falling back to default");
+                return null;
+            }
+            
+            // Render view with page config data
+            $content = view($viewName, $pageConfig)->render();
+            
+            // Create block with the rendered content
+            $block = app(\App\Services\BlockService::class);
+            return $block->create($content, $options);
+            
+        } catch (\Exception $e) {
+            \Log::error("Error rendering view {$viewName}: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Determine if content title should be shown in the block
+     */
+    protected function shouldShowContentTitle(?string $pageTitle, $contentBlock): bool {
+        if (!$contentBlock || !$contentBlock->title || !$pageTitle) {
+            return true; // Show content title if we have one and no page title
+        }
+        
+        // Hide content title if it's the same as page title
+        return $pageTitle !== $contentBlock->title;
+    }
+    
+    /**
+     * Render page content using BlockService
+     */
+    public function renderPageContent(string $content): string {
+        $block = app(\App\Services\BlockService::class);
+        return $block->postProcessContent($content, 'html');
     }
 
     /**
@@ -307,8 +461,8 @@ class PageService {
         $html = $converter->convert($markdown)->getContent();
         
         // Use BlockService for post-processing (includes shortcodes and other processing)
-        $blockService = app(\App\Services\BlockService::class);
-        $html = $blockService->postProcessContent($html, 'markdown');
+        $block = app(\App\Services\BlockService::class);
+        $html = $block->postProcessContent($html, 'markdown');
         
         // Post-process to ensure proper Prism.js classes
         $html = preg_replace('/<code class="language-(\w+)"/', '<code class="language-$1"', $html);

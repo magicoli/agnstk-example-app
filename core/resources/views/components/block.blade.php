@@ -21,7 +21,7 @@
     
     @if(isset($content))
     <p class="lead">
-        {{ $content }}
+        {!! $content !!}
     </p>
     @endif
     

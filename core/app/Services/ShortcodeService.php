@@ -10,63 +10,27 @@ class ShortcodeService {
         $shortcodes = config('app.registered_shortcodes', []);
         
         if (empty($shortcodes)) {
-            error_log("DEBUG: No shortcodes registered");
             return $content;
         }
-        
-        error_log("DEBUG: Processing shortcodes with " . count($shortcodes) . " registered shortcodes");
-        
+       
         // Auto-detect source format if not provided
         if ($sourceFormat === null) {
             $sourceFormat = $this->detectSourceFormat($content);
-            error_log("DEBUG: Detected source format: " . $sourceFormat);
         }
         
-        // For markdown source, use alternative syntax {{shortcode}} instead of [shortcode]
-        // This prevents conflict with markdown link syntax
-        // Updated: Always use {{shortcode}} syntax as it's more distinctive
-        $pattern = '/\{\{(\w+)(?:\s+(.*?))?\}\}/s';
-            
-        error_log("DEBUG: Using pattern: " . $pattern);
+        // Process both {{shortcode}} and [shortcode] patterns
+        // Exception: exclude [shortcode] for markdown sources to avoid conflicts
+        $processedContent = $content;
         
-        $content = preg_replace_callback($pattern, function($matches) use ($shortcodes, $sourceFormat) {
-            error_log("DEBUG: Found shortcode match: " . json_encode($matches));
-            
-            $shortcode = $matches[1];
-            $attributeString = isset($matches[2]) ? trim($matches[2]) : '';
-            
-            if (!isset($shortcodes[$shortcode])) {
-                error_log("DEBUG: Shortcode {$shortcode} not found in registered shortcodes");
-                return $matches[0]; // Return original if shortcode not found
-            }
-            
-            $serviceClass = $shortcodes[$shortcode];
-            error_log("DEBUG: Processing shortcode {$shortcode} with class {$serviceClass}");
-            
-            try {
-                // Parse attributes
-                $attributes = $this->parseShortcodeAttributes($attributeString);
-                error_log("DEBUG: Parsed attributes: " . json_encode($attributes));
-                
-                // Debug: check if class exists
-                if (!class_exists($serviceClass)) {
-                    error_log("ERROR: Service class {$serviceClass} does not exist");
-                    return $sourceFormat === 'markdown' ? "**[shortcode error: class not found]**" : '[shortcode error: class not found]';
-                }
-                
-                // Create service instance with attributes
-                $service = new $serviceClass($attributes);
-                $result = $service->render($attributes);
-                error_log("DEBUG: Service render result length: " . strlen($result));
-                return $result;
-            } catch (\Exception $e) {
-                error_log("ERROR: Shortcode processing failed for {$serviceClass}: " . $e->getMessage());
-                error_log("ERROR: Exception trace: " . $e->getTraceAsString());
-                return $sourceFormat === 'markdown' ? "**[shortcode error: {$shortcode}]**" : '[shortcode error]';
-            }
-        }, $content);
+        // Always process {{shortcode}} syntax
+        $processedContent = $this->processPattern($processedContent, '/\{\{(\w+)(?:\s+(.*?))?\}\}/s', $shortcodes, $sourceFormat);
         
-        return $content;
+        // Process [shortcode] syntax only for non-markdown sources  
+        if ($sourceFormat !== 'markdown') {
+            $processedContent = $this->processPattern($processedContent, '/\[(\w+)(?:\s+(.*?))?\]/s', $shortcodes, $sourceFormat);
+        }
+        
+        return $processedContent;
     }
     
     /**
@@ -153,5 +117,43 @@ class ShortcodeService {
             error_log("ERROR: Blade service rendering failed for {$serviceClass}: " . $e->getMessage());
             return config('app.debug') ? "[service error: {$serviceClass}]" : '';
         }
+    }
+    
+    /**
+     * Process a single shortcode pattern
+     */
+    protected function processPattern(string $content, string $pattern, array $shortcodes, string $sourceFormat): string {
+        return preg_replace_callback($pattern, function($matches) use ($shortcodes, $sourceFormat) {
+            
+            $shortcode = $matches[1];
+            $attributeString = isset($matches[2]) ? trim($matches[2]) : '';
+            
+            if (!isset($shortcodes[$shortcode])) {
+                return $matches[0]; // Return original if shortcode not found
+            }
+            
+            $serviceClass = $shortcodes[$shortcode];
+            
+            try {
+                // Parse attributes
+                $attributes = $this->parseShortcodeAttributes($attributeString);
+                
+                // Debug: check if class exists
+                if (!class_exists($serviceClass)) {
+                    error_log("ERROR: Service class {$serviceClass} does not exist");
+                    return $matches[0];
+                }
+                
+                // Create service instance
+                $service = new $serviceClass($attributes);
+                
+                // Call render method with attributes
+                return $service->render($attributes);
+                
+            } catch (\Exception $e) {
+                error_log("ERROR: Failed to process shortcode {$shortcode}: " . $e->getMessage());
+                return $matches[0]; // Return original on error
+            }
+        }, $content);
     }
 }
