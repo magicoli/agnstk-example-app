@@ -113,18 +113,25 @@ class HelloService implements Renderable {
      * Always returns HTML via view() - no hardcoded HTML!
      */
     public function render(array $options = []): string {
+        $show_title = $options['show_title'] ?? $this->show_title ?? true;
         // Merge instance options with render-time options (render options take precedence)
-        $title = $options['title'] ?? $this->title ?? _('Hello from AGNSTK!');
+        $title = $show_title ? ( $options['title'] ?? $this->title ?? '') : '';
         $content = $options['content'] ?? $this->content ?? _('This is a demonstration of the AGNSTK service system.');
         $attributes = array_merge($this->attributes, $options['attributes'] ?? []);
+
+        $debug = $options; unset($debug['content']);
+        $debug['show_title'] = ($this->show_title ?? $options['show_title'] ?? true) ? 'true' : 'false';
+        $debug_msg = "[DEBUG] HelloService::render options: " . print_r($debug, true);
+        error_log($debug_msg);
+        $content .= "\n<pre>" . $debug_msg . "</pre>"; // Add debug info to content
         
-        $data = [
+        $data = array_filter([
             'title' => $title,
             'content' => $content,
             'platform' => $this->getCurrentPlatform(),
             'timestamp' => now()->format('Y-m-d H:i:s'),
             'attributes' => $attributes, // Pass attributes to view
-        ];
+        ]);
         
         return view('components.block', $data)->render();
     }

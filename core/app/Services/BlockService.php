@@ -47,7 +47,8 @@ class BlockService {
             '$this->show_title' => $this->show_title ? 'true' : 'false',
             '$this->options[\'show_title\']' => ($this->options['show_title'] ?? true) ? 'true' : 'false',
         ];
-        $preprocessed .= "\n<pre>DEBUG: " . __METHOD__ . print_r($debug, true) . "</pre>";
+        error_log("[DEBUG] BlockService::" . __FUNCTION__ . " - options: " . print_r($debug, true));
+        $preprocessed .= "\n<pre>DEBUG: " . __METHOD__ . " options=" . print_r($debug, true) . "</pre>";
         // Use the standard block component
         $view = view('components.block', [
         // $viewHtml = view('components.block', [
@@ -200,7 +201,7 @@ class BlockService {
             $debug = $options; unset($debug['content']);
             $debug['show_title'] = $options['show_title'] ? 'true' : 'false';
             error_log("[DEBUG] BlockService::createFromCallback - options: " . print_r($debug, true));
-            $options['content'] .= "\n<pre>DEBUG: " . __METHOD__ . print_r($debug, true) . "</pre>"; // Add debug info to content
+            $options['content'] .= "\n<pre>DEBUG: " . __METHOD__ . " options=" .print_r($debug, true) . "</pre>"; // Add debug info to content
             return $this->create($options);
             
         } catch (\Exception $e) {
