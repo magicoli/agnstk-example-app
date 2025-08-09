@@ -39,8 +39,8 @@ class BlockService {
     }
     
     /**
-     * Create a block from various sources
-     * This method detects source type and initializes the appropriate block
+     * Create a block from various content sources
+     * This is the main public method for creating blocks from different sources
      */
     public function create($source, array $options = []) {
         $this->source = $source ?? null;
@@ -65,6 +65,127 @@ class BlockService {
         }
         
         throw new \InvalidArgumentException("Invalid block source provided");
+    }
+
+    /**
+     * Create content block from different source types
+     * This method handles all the content source logic that was previously in PageService
+     */
+    public function createFromContentSource(array $contentSource, array $options = []): ?self {
+        switch ($contentSource['type']) {
+            case 'content':
+                // Direct HTML/text content
+                return $this->create($contentSource['data'], $options);
+                
+            case 'source':
+                // File source (markdown, etc.)
+                $filePath = resolve_file_path($contentSource['data']);
+                if (file_exists($filePath)) {
+                    return $this->create($filePath, $options);
+                }
+                \Log::warning("Source file not found: {$contentSource['data']} (resolved to: {$filePath})");
+                return null;
+                
+            case 'callback':
+                // Service callback
+                return $this->createFromCallback($contentSource['data'], $options);
+                
+            case 'view':
+                // Laravel view
+                return $this->createFromView($contentSource['data'], $options);
+                
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Create a block from service callback
+     */
+    public function createFromCallback(string $callback, array $options = []): ?self {
+        error_log("[DEBUG] Creating callback block for: {$callback}");
+        
+        // Parse callback string like "HelloService@render"
+        [$serviceClass, $method] = explode('@', $callback, 2);
+        
+        try {
+            // Try to resolve with full namespace first
+            if (!class_exists($serviceClass)) {
+                // Try with YourApp namespace (our service namespace)
+                $namespacedClass = "YourApp\\Services\\{$serviceClass}";
+                if (class_exists($namespacedClass)) {
+                    $serviceClass = $namespacedClass;
+                }
+            }
+            
+            error_log("[DEBUG] Resolved service class: {$serviceClass}");
+            
+            // Resolve service instance
+            $service = app($serviceClass);
+            
+            if (!method_exists($service, $method)) {
+                \Log::error("Method {$method} not found on {$serviceClass}");
+                return null;
+            }
+            
+            // Call the method and get content
+            $content = $service->$method();
+            error_log("[DEBUG] Service method output length: " . strlen($content));
+            
+            // Create block with the rendered content
+            $resultBlock = $this->create($content, $options);
+            error_log("[DEBUG] Created block: " . (is_object($resultBlock) ? get_class($resultBlock) : 'null'));
+            
+            return $resultBlock;
+            
+        } catch (\Exception $e) {
+            \Log::error("Error calling {$callback}: " . $e->getMessage());
+            error_log("[ERROR] Exception in createFromCallback: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Create a block from Laravel view
+     */
+    public function createFromView(string $viewName, array $options = [], array $viewData = []): ?self {
+        try {
+            // Check if view exists
+            if (!view()->exists($viewName)) {
+                \Log::warning("View {$viewName} not found, falling back to default");
+                return null;
+            }
+            
+            // Render view with provided data
+            $content = view($viewName, $viewData)->render();
+            
+            // Create block with the rendered content
+            return $this->create($content, $options);
+            
+        } catch (\Exception $e) {
+            \Log::error("Error rendering view {$viewName}: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get the block title
+     */
+    public function getTitle(): ?string {
+        return $this->title;
+    }
+
+    /**
+     * Get block configuration/properties
+     */
+    public function getConfig(): array {
+        return [
+            'title' => $this->title,
+            'id' => $this->id,
+            'source' => $this->source,
+            'sourceFormat' => $this->sourceFormat,
+            'options' => $this->options,
+        ];
     }
     
     /**

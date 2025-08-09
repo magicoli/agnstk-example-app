@@ -278,7 +278,7 @@ class PageService {
                 
             case 'source':
                 // File source (markdown, etc.)
-                $filePath = $this->resolveFilePath($contentSource['data']);
+                $filePath = resolve_file_path($contentSource['data']);
                 if (file_exists($filePath)) {
                     return $block->create($filePath, $options);
                 }
@@ -296,32 +296,6 @@ class PageService {
             default:
                 return null;
         }
-    }
-    
-    /**
-     * Resolve file path relative to application root
-     */
-    protected function resolveFilePath(string $path): string {
-        // If path is already absolute, return as-is
-        if (str_starts_with($path, '/')) {
-            return $path;
-        }
-        
-        // First try relative to project root (where HELLO.md is located)
-        $projectRoot = dirname(base_path());
-        $fullPath = $projectRoot . '/' . $path;
-        if (file_exists($fullPath)) {
-            return $fullPath;
-        }
-        
-        // Fallback to application root
-        $appPath = base_path($path);
-        if (file_exists($appPath)) {
-            return $appPath;
-        }
-        
-        // Return the project root path for logging
-        return $fullPath;
     }
     
     /**
@@ -426,7 +400,7 @@ class PageService {
         
         // Check if it's a file path
         if (self::isFilePath($source)) {
-            $filePath = self::resolveSourceFilePath($source);
+            $filePath = resolve_file_path($source);
             
             if (!$filePath || !File::exists($filePath)) {
                 return '<div class="alert alert-warning">File not found: ' . $source . '</div>';
@@ -462,23 +436,6 @@ class PageService {
     }
     
     /**
-     * Resolve source file path relative to application root
-     */
-    private static function resolveSourceFilePath(string $source): ?string {
-        // Get the application root from bundle config
-        // $appRoot = config('bundle.app_root', dirname(base_path()));
-        $appRoot = config('app.app_root');
-        
-        $filePath = $appRoot . '/' . ltrim($source, '/');
-
-        if (File::exists($filePath)) {
-            return $filePath;
-        }
-
-        return null;
-    }
-    
-    /**
      * Render markdown from a resolved file path
      */
     private static function renderMarkdownFileFromPath(string $filePath): string {
@@ -505,7 +462,7 @@ class PageService {
      * Render markdown file content as HTML
      */
     private static function renderMarkdownFile(string $filename): string {
-        $filePath = base_path($filename);
+        $filePath = resolve_file_path($filename);
         
         if (!File::exists($filePath)) {
             return '<div class="alert alert-warning">' . $filename . ' not found.</div>';
