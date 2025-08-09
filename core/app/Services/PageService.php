@@ -144,7 +144,7 @@ class PageService {
     /**
      * Get page configuration including proper title fallback
      */
-    public function getPageConfiguration(string $slug): array {
+    public function getConfig(string $slug): array {
         error_log('[DEBUG] ' . __METHOD__ . " called with slug: {$slug}");
         
         // First, check for config-based pages
@@ -183,11 +183,11 @@ class PageService {
         }
         
 
-        $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : $contentBlock->title;
+        // $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : $contentBlock->title;
 
         // DEBUG
-        // $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : 'no page title';
-        // $pageTitle .= ' (' . ($contentBlock->title ?: 'no content title') . ')';
+        $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : 'no page title';
+        $pageTitle .= ' (' . ($contentBlock->title ?: 'no content title') . ')';
 
         $pageConfig['title'] = $pageTitle;
         

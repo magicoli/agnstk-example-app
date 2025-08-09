@@ -13,12 +13,7 @@ class BlockService {
     public $id;
 
     
-    public function __construct($options = []) {
-        // $this->content = $content;
-        // $this->sourceFormat = $sourceFormat;
-        // $this->options = $options;
-        // $this->title = $options['title'] ?? null;
-        // $this->id = $options['id'] ?? null;
+    public function __construct($args = []) {
     }
     
     public function render(): string {

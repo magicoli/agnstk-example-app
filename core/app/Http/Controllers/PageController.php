@@ -25,7 +25,7 @@ class PageController extends Controller {
         
         // Only get page configuration if we have a valid slug
         if ($this->slug) {
-            $this->pageConfig = $this->pageService->getPageConfiguration($this->slug);
+            $this->pageConfig = $this->pageService->getConfig($this->slug);
             
             // Check if page exists and is enabled
             $pages = config('pages', []);
