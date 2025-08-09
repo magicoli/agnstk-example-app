@@ -12,14 +12,14 @@ class PageService {
     /**
      * Get page configuration
      */
-    public static function getPageConfig(string $pageId): ?array {
-        $page = config("pages.$pageId", null);
+    public static function getPageConfig(string $slug): ?array {
+        $page = config("pages.$slug", null);
         // Sanitize and set defaults
         if (!empty($page)) {
             $page = array_merge([
                 'enabled' => true, // Default to enabled
-                'uri' => $pageId, // Default uri to pageId
-                'title' => ucfirst($pageId), // Default title to capitalized pageId
+                'uri' => $slug, // Default uri to slug
+                'title' => ucfirst($slug), // Default title to capitalized slug
                 'enabled' => true, // Default enabled to true
             ], $page);
 
@@ -48,7 +48,7 @@ class PageService {
             $menu = is_array($menu) ? $menu : [];
 
             $page['menu'] = array_merge([
-                'label' => $page['title'] ?? $pageId, // Default label to title or capitalized pageId
+                'label' => $page['title'] ?? $slug, // Default label to title or capitalized slug
                 'order' => 10, // Default order if not set
                 'enabled' => $page['auth_required'] ?? false, // Default auth requirement to false
             ], $menu);
@@ -63,8 +63,8 @@ class PageService {
         try {
             $pages = config('pages', []);
             $app_defaults_pages = config('app-defaults.pages', []);
-            foreach($pages as $pageId => $page) {
-                $pages[$pageId] = self::getPageConfig($pageId);
+            foreach($pages as $slug => $page) {
+                $pages[$slug] = self::getPageConfig($slug);
             }
             $pages = array_filter($pages, fn($page) => $page['enabled'] ?? false);
         } catch (\Error $e) {
@@ -82,10 +82,10 @@ class PageService {
         $menuItems = [];
 
         // Process menu items from page config
-        foreach ($pages as $pageId => $page) {
+        foreach ($pages as $slug => $page) {
             if (isset($page['menu']) && ($page['menu']['enabled'] ?? false)) {
                 $menuItems[] = [
-                    'pageId' => $pageId,
+                    'slug' => $slug,
                     'label' => $page['menu']['label'] ?? $page['title'],
                     'url' => base_url($page['uri']),
                     'order' => $page['menu']['order'] ?? 10, // Default order if not set
@@ -102,7 +102,7 @@ class PageService {
                 $serviceUri = self::getServiceUri($menuConfig['service_class']);
                 
                 $menuItems[] = [
-                    'pageId' => class_basename($menuConfig['service_class']),
+                    'slug' => class_basename($menuConfig['service_class']),
                     'label' => $menuConfig['label'] ?? class_basename($menuConfig['service_class']),
                     'url' => base_url($serviceUri),
                     'order' => $menuConfig['order'] ?? 10,
@@ -145,9 +145,34 @@ class PageService {
      * Get page configuration including proper title fallback
      */
     public function getPageConfiguration(string $slug): array {
+        error_log('[DEBUG] ' . __METHOD__ . " called with slug: {$slug}");
+        
+        // First, check for config-based pages
         $pages = config('pages', []);
         $pageConfig = $pages[$slug] ?? [];
         
+        // If not found in config, check for service-based pages
+        if (empty($pageConfig)) {
+            $servicePages = config('app.registered_service_pages', []);
+            if (isset($servicePages[$slug])) {
+                $pageConfig = $this->buildServicePageConfig($servicePages[$slug]);
+            }
+        }
+        
+        // If still no page config found, return empty configuration
+        if (empty($pageConfig)) {
+            error_log("[DEBUG] No page configuration found for slug: {$slug}");
+            return [
+                'title' => 'Page Not Found',
+                'description' => '',
+                'keywords' => '',
+                'content' => '',
+                'contentBlock' => null,
+                'template' => 'default',
+                'showContentTitle' => false,
+            ];
+        }
+
         // Create content block based on different content sources
         $contentBlock = null;
         $contentSource = $this->determineContentSource($pageConfig);
@@ -157,14 +182,17 @@ class PageService {
             $contentBlock = $this->createContentBlock($block, $contentSource, $pageConfig, $slug);
         }
         
-        // Determine page title with fallback logic
-        $pageTitle = $pageConfig['title'] ?? null;
-        if (!$pageTitle && $contentBlock && $contentBlock->title) {
-            $pageTitle = $contentBlock->title;
-        }
+
+        $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : $contentBlock->title;
+
+        // DEBUG
+        // $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : 'no page title';
+        // $pageTitle .= ' (' . ($contentBlock->title ?: 'no content title') . ')';
+
+        $pageConfig['title'] = $pageTitle;
         
         return [
-            'title' => $pageTitle,
+            'title' => $pageConfig['title'],
             'description' => $pageConfig['description'] ?? '',
             'keywords' => $pageConfig['keywords'] ?? '',
             'content' => $pageConfig['content'] ?? '',
@@ -172,6 +200,43 @@ class PageService {
             'template' => $pageConfig['template'] ?? 'default',
             'showContentTitle' => $this->shouldShowContentTitle($pageTitle, $contentBlock),
         ];
+    }
+    
+    /**
+     * Build page configuration from service registration
+     */
+    protected function buildServicePageConfig(array $serviceRegistration): array {
+        $serviceClass = $serviceRegistration['service_class'];
+        error_log("[DEBUG] Building service page config for: {$serviceClass}");
+        
+        try {
+            // Get service instance and its configuration
+            $service = app($serviceClass);
+            
+            // Get page config from service if available
+            $pageConfig = method_exists($service, 'getPageConfig') ? $service->getPageConfig() : [];
+            
+            // Build unified page config
+            $config = [
+                'title' => $pageConfig['title'] ?? $service->getTitle() ?? 'Service Page',
+                'description' => $pageConfig['description'] ?? $pageConfig['meta_description'] ?? '',
+                'callback' => $serviceClass . '@render', // Use service callback
+                'type' => 'service',
+                'service_class' => $serviceClass,
+                'template' => $pageConfig['template'] ?? 'page',
+            ];
+            
+            error_log("[DEBUG] Built service config: " . json_encode($config));
+            return $config;
+            
+        } catch (\Exception $e) {
+            error_log("[ERROR] Failed to build service page config for {$serviceClass}: " . $e->getMessage());
+            return [
+                'title' => 'Service Error',
+                'content' => 'Service temporarily unavailable.',
+                'type' => 'error',
+            ];
+        }
     }
     
     /**
@@ -263,6 +328,8 @@ class PageService {
      * Create a block from service callback
      */
     protected function createCallbackBlock(string $callback, array $options) {
+        error_log("[DEBUG] Creating callback block for: {$callback}");
+        
         // Parse callback string like "HelloService@render"
         [$serviceClass, $method] = explode('@', $callback, 2);
         
@@ -276,6 +343,8 @@ class PageService {
                 }
             }
             
+            error_log("[DEBUG] Resolved service class: {$serviceClass}");
+            
             // Resolve service instance
             $service = app($serviceClass);
             
@@ -286,13 +355,18 @@ class PageService {
             
             // Call the method and get content
             $content = $service->$method();
+            error_log("[DEBUG] Service method output length: " . strlen($content));
             
             // Create block with the rendered content
             $block = app(\App\Services\BlockService::class);
-            return $block->create($content, $options);
+            $resultBlock = $block->create($content, $options);
+            error_log("[DEBUG] Created block: " . (is_object($resultBlock) ? get_class($resultBlock) : 'null'));
+            
+            return $resultBlock;
             
         } catch (\Exception $e) {
             \Log::error("Error calling {$callback}: " . $e->getMessage());
+            error_log("[ERROR] Exception in createCallbackBlock: " . $e->getMessage());
             return null;
         }
     }

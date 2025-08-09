@@ -11,6 +11,8 @@ class HelloService implements Renderable {
      * Service configuration for editors
      */
 
+    protected static $initialized = false; // Track if service is initialized
+
     protected static $label;
     protected static $description;
     protected static $category;
@@ -35,37 +37,42 @@ class HelloService implements Renderable {
 
     public function __construct(array $options = []) {
         // Initialize static properties
-        self::initProperties();
-
+        self::init();
+        
         // Set instance properties from options
         $this->title = $options['title'] ?? static::$defaultTitle;
         $this->content = $options['content'] ?? static::$defaultContent;
         $this->attributes = $options['attributes'] ?? [];
+
+        self::provides();
     }
 
     /**
      * Set service instance properties
      * This is useful for dynamic configuration or when properties need to be set after instantiation
      */
-    public static function initProperties() {
+    public static function init() {
+        if(self::$initialized) {
+            return; // Already initialized
+        }
 
         // Only lable is set here (for admin and editors).
         // Title is dynamic so it can not be set here.
         // It should be set with arguments passed to the instance or by the calling method
         // including shortcode, block or page instances.
 
-        self::$label = _('Hello Service');
+        self::$label = _('Hello World');
         self::$description = _('A simple Hello World service for demonstration purposes');
         self::$category = _('example');
         self::$icon = 'smiley';
         self::$keywords = ['hello', 'example', 'demo'];
-        self::$uri = '/hello-service';
+        self::$uri = '/hello';
 
         // Set default values for dynamic content
-        self::$defaultTitle = 'Hello Service';
-        self::$defaultContent = 'Welcome to AGNSTK Hello Service! This is a demonstration of the service system with parameter override capabilities.';
+        self::$defaultTitle = _('Hello World');
+        self::$defaultContent = _('This is a demonstration of the service system.');
 
-        self::provides();
+        self::$initialized = true; // Mark as initialized
     }
 
     /**
@@ -75,13 +82,7 @@ class HelloService implements Renderable {
         if(!empty(self::$provides)) {
             return self::$provides;
         }
-
-        self::$label = _('Hello Service');
-        self::$description = _('A simple Hello World service for demonstration purposes');
-        self::$category = _('example');
-        self::$icon = 'smiley';
-        self::$keywords = ['hello', 'example', 'demo'];
-        self::$uri = '/hello-service';
+        self::init();
 
         // Service provides configuration - dynamic values set here
         self::$provides = [
@@ -89,15 +90,15 @@ class HelloService implements Renderable {
             'shortcode' => 'hello',
             'uri' => self::$uri,
             'menu' => [
-                'label' => _('Hello Service'),
+                'label' => _('Hello World'),
                 'uri' => self::$uri,
                 'icon' => self::$icon,
-                'order' => 20,
+                'order' => 10,
                 'enabled' => true,
             ],
             'api' => true,
             'page' => [
-                'title' => _('Hello Service'),
+                'title' => _('Hello World'),
                 'uri' => self::$uri,
                 'template' => 'page', // Use generic page template
                 'meta_description' => _('Hello World example page')

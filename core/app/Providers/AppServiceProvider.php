@@ -155,38 +155,37 @@ class AppServiceProvider extends ServiceProvider {
      * Register a page route
      */
     private function registerPageRoute(string $uri, string $serviceClass): void {
-        // Register Laravel route
-        \Illuminate\Support\Facades\Route::get($uri, function() use ($serviceClass) {
-            $service = app($serviceClass);
-            
-            // Get page config to determine page title
-            $pageConfig = $service->getPageConfig();
-            $pageTitle = $pageConfig['title'] ?? null;
-            
-            // Get content title (fallback)
-            $contentTitle = $service->getTitle();
-            
-            // Determine final titles
-            $finalPageTitle = $pageTitle ?: $contentTitle; // Page title falls back to content title
-            
-            // If page title and content title are the same, don't show title in content block
-            $shouldShowContentTitle = ($finalPageTitle !== $contentTitle);
-            
-            // Render content with title control
-            $renderOptions = [];
-            if (!$shouldShowContentTitle) {
-                $renderOptions['title'] = null; // Don't show title in block
-            }
-            
-            $content = $service->render($renderOptions);
-            
-            return view('page', [
-                'title' => $finalPageTitle,
-                'content' => $content
-            ]);
-        });
+        // Generate a slug from the service class name for consistent identification
+        $slug = $this->generateSlugFromServiceClass($serviceClass);
+        
+        // Store service mapping for PageController to access
+        $servicePages = config('app.registered_service_pages', []);
+        $servicePages[$slug] = [
+            'uri' => $uri,
+            'service_class' => $serviceClass,
+            'type' => 'service',
+        ];
+        config(['app.registered_service_pages' => $servicePages]);
+        
+        // Register Laravel route using PageController
+        \Illuminate\Support\Facades\Route::get($uri, [\App\Http\Controllers\PageController::class, 'show'])
+            ->defaults('slug', $slug);
     }
     
+    /**
+     * Generate a consistent slug from service class name
+     */
+    private function generateSlugFromServiceClass(string $serviceClass): string {
+        // Extract class name without namespace
+        $className = class_basename($serviceClass);
+        
+        // Remove 'Service' suffix if present
+        $className = preg_replace('/Service$/', '', $className);
+        
+        // Convert to slug format
+        return \Illuminate\Support\Str::slug($className);
+    }
+
     /**
      * Register a menu item
      */
