@@ -190,9 +190,12 @@ class PageService {
         
 
         // Handle page title with proper fallback logic
-        $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : 'no page title';
-        $pageTitle .= ' (' . ($contentBlock ? ($contentBlock->getTitle() ?: 'no content title') : 'no content block') . ')';
-
+        $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : $contentBlock->getTitle();
+        // $pageTitle .= ' (' . ($contentBlock ? ($contentBlock->getTitle() ?: 'no content title') : 'no content block') . ')';
+        if(strip_tags($pageTitle) === strip_tags($contentBlock->getTitle())) {
+            // If title is still empty, use slug as fallback
+            $contentBlock->hideTitle();
+        }
         $pageConfig['title'] = $pageTitle;
         
         return [

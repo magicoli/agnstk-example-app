@@ -16,6 +16,7 @@ class BlockService {
     // Instance properties
     protected $viewHtml; // Rendered HTML from view
     protected $attributes = []; // For CSS classes and other HTML attributes
+    protected $show_title = true; // Whether to show the title in the block
     public $title;
     public $id;        // HTML id attribute (instance-specific, like "main-content", "sidebar-1", "footer")
     public $slug;      // Block type slug (semantic, like "hello", "example-block")
@@ -44,8 +45,8 @@ class BlockService {
         // Use the standard block component
         $view = view('components.block', [
         // $viewHtml = view('components.block', [
-            'title' => $this->title,
-            'content' => $this->slug . '<br>' . $preprocessed,
+            'title' => $this->show_title ? $this->title : '',
+            'content' => $preprocessed,
             'attributes' => $this->options['attributes'] ?? [],
         ])->render();
 
@@ -85,12 +86,9 @@ class BlockService {
             // Direct HTML/text content
             $this->slug = ($this->slug ?: $options['container-id'] ?? 'content') . '-block';
             $this->content = $options['content'];
-            
-            // Extract title from HTML content if not already set
-            if (!$this->title) {
-                $this->title = $this->extractTitleFromHtml($this->content);
-            }
-            
+                        // Extract title from HTML content if not already set
+            $this->preprocessContent();
+
             return $this;
         }
         
@@ -101,17 +99,8 @@ class BlockService {
                 $this->slug = Str::slug(pathinfo($options['source'], PATHINFO_FILENAME)) . '-source';
                 $this->content = file_get_contents($filePath);
                 
-                // Extract title from markdown/content if not already set
-                if (!$this->title) {
-                    $extension = strtolower(pathinfo($options['source'], PATHINFO_EXTENSION));
-                    if ($extension === 'md' || $extension === 'markdown') {
-                        $this->title = $this->extractTitleFromMarkdown($this->content);
-                    } else {
-                        $this->title = $this->extractTitleFromHtml($this->content);
-                    }
-                }
-                
                 $this->preprocessContent();
+                
                 return $this;
             }
             \Log::warning("Source file not found: {$options['source']} (resolved to: {$filePath})");
@@ -192,7 +181,8 @@ class BlockService {
             if (method_exists($service, 'getTitle')) {
                 $options['title'] = $service->getTitle();
             }
-            
+
+            $options['title'] = $this->extractTitle($content); // Extract title from content if available
             $options['content'] = $content; // Set content in options
             // Create block with the rendered content
             return $this->create($options);
@@ -217,7 +207,9 @@ class BlockService {
             
             // Render view with provided data
             $content = view($viewName, $viewData)->render();
-            
+            $options['title'] = $this->extractTitle($content); // Extract title from content if available
+            $content = $this->content;
+
             // Create block with the rendered content
             return $this->create($content, $options);
             
@@ -234,6 +226,9 @@ class BlockService {
         return $this->title;
     }
 
+    public function hideTitle() {
+        $this->show_title = false;
+    }
 
     /**
      * Get block configuration/properties
@@ -323,11 +318,15 @@ class BlockService {
         if ($sourceFormat === 'markdown') {
             $content = $this->convertMarkdownToHtml($content);
         }
-        
+
+        $this->content = $content; // Update content after conversion
+
+        $this->extractTitle();
+
         // Add other preprocessing steps here (future extensibility)
         // e.g., $content = $this->preprocessTemplateVariables($content);
         
-        return $content;
+        return $this->content;
     }
     
     /**
@@ -373,23 +372,37 @@ class BlockService {
         return $shortcodeService->processShortcodes($content, $sourceFormat);
     }
     
-    /**
-     * Extract title from markdown content (first # header)
-     */
-    protected function extractTitleFromMarkdown(string $markdown): ?string {
-        if (preg_match('/^#\s+(.+)$/m', $markdown, $matches)) {
-            return trim($matches[1]);
-        }
-        return null;
-    }
+    // /**
+    //  * Extract title from markdown content (first # header)
+    //  */
+    // protected function extractTitleFromMarkdown(string $markdown): ?string {
+    //     if (preg_match('/^#\s+(.+)$/m', $markdown, $matches)) {
+    //         return trim($matches[1]);
+    //     }
+    //     return null;
+    // }
     
-    /**
-     * Extract title from HTML content (first h1 tag)
-     */
-    protected function extractTitleFromHtml(string $html): ?string {
-        if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $html, $matches)) {
-            return strip_tags($matches[1]);
+    // /**
+    //  * Extract title from HTML content (first h1 tag)
+    //  */
+    // protected function extractTitleFromHtml(string $html): ?string {
+    //     if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $html, $matches)) {
+    //         return strip_tags($matches[1]);
+    //     }
+    //     return null;
+    // }
+
+    protected function extractTitle($content = null): ?string {
+        $content = $content ?? $this->content;
+
+        if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $this->content, $matches)) {
+            $title = strip_tags($matches[1]);
+            $this->title = $this->title ?? $title; // Set title only if not already set or matches
+            $this->content = str_replace($matches[1], '', $this->content); // Remove title from content
         }
-        return null;
+        return $this->content;
     }
+
+
+
 }
