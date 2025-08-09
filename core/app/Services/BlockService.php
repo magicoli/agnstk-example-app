@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Str;
+
 class BlockService {
     use \App\Traits\RenderableTrait;
     
@@ -9,16 +11,33 @@ class BlockService {
     protected $source;
     protected $sourceFormat;
     protected $options;
+    protected $view; // View name for rendering
+    protected $callback; // Callback for dynamic content rendering
+    // Instance properties
+    protected $viewHtml; // Rendered HTML from view
+    protected $attributes = []; // For CSS classes and other HTML attributes
     public $title;
-    public $id;
+    public $id;        // HTML id attribute (instance-specific, like "main-content", "sidebar-1", "footer")
+    public $slug;      // Block type slug (semantic, like "hello", "example-block")
 
-    
-    public function __construct($args = []) {
+    /**
+     * Create a block from various content sources
+     * This is the main public method for creating blocks from different sources
+     * 
+     * @param array $options properties for the block (source, content, view, id, title, etc.)
+     */
+    public function __construct($options = []) {
+        $this->id = $this->options['id'] ?? null;
+        $this->options = $options ?? [];
+        $this->title = $this->options['title'] ?? null;
+        $this->content = $this->options['content'] ?? null;
+        $this->view = $this->options['view'] ?? null;
+        $this->source = $this->options['source'] ?? null;
+        $this->callback = $this->options['callback'] ?? null;
+        $this->attributes = $this->options['attributes'] ?? []; // Will be completed later
     }
     
     public function render(): string {
-        // $args = func_get_args();
-        // error_log("DEBUG: Rendering block with args: " . json_encode($args));
         // PREPROCESSING: Convert markdown to HTML if needed
         $preprocessed = $this->preprocessContent();
         
@@ -26,7 +45,7 @@ class BlockService {
         $view = view('components.block', [
         // $viewHtml = view('components.block', [
             'title' => $this->title,
-            'content' => $preprocessed,
+            'content' => $this->slug . '<br>' . $preprocessed,
             'attributes' => $this->options['attributes'] ?? [],
         ])->render();
 
@@ -41,30 +60,71 @@ class BlockService {
     /**
      * Create a block from various content sources
      * This is the main public method for creating blocks from different sources
+     * 
+     * @param string $slug Block slug (type identifier)
+     * @param array $options Additional properties for the block (source, content, view, id, title, etc.)
      */
-    public function create($source, array $options = []) {
-        $this->source = $source ?? null;
-        $this->options = $options ?? [];
+    /**
+     * Create a block with comprehensive configuration
+     * Accepts semantic parameters: content, source, callback, view, slug, id, title
+     * BlockService handles all logic including slug determination
+     * 
+     * @param array $options All block configuration including semantic content parameters
+     * @return self
+     */
+    public function create($options = []) {
+        // Determine block slug from various sources
+        $this->id = ($options['id'] ?? $this->slug) . '-block';
+        $this->title = $options['title'] ?? null;
+        $this->options = $options;
         
-        // If source is a service class name
-        if (is_string($source) && class_exists($source)) {
-            error_log("DEBUG source is service class: " . $source);
-            return new $source($options);
-        }
-        
-        // If source is a string, detect what kind of source it is
-        if (is_string($source)) {
-            error_log("DEBUG source is string: " . substr($source, 0, 50) . (strlen($source) > 50 ? '...' : ''));
-            return $this->setBlockFromSource();
-        }
+        $this->slug = $options['slug'] ?? null;
 
-        // If source is already a block instance
-        if (is_object($source)) {
-            error_log("DEBUG source is object: " . get_class($source));
-            return $source;
+        // Handle semantic content parameters
+        if (isset($options['content'])) {
+            // Direct HTML/text content
+            $this->slug = ($this->slug ?: $options['container-id'] ?? 'content') . '-block';
+            $this->content = $options['content'];
+            return $this;
         }
         
-        throw new \InvalidArgumentException("Invalid block source provided");
+        if (isset($options['source'])) {
+            // File source (markdown, etc.)
+            $filePath = resolve_file_path($options['source']);
+            if (file_exists($filePath)) {
+                $this->slug = Str::slug(pathinfo($options['source'], PATHINFO_FILENAME)) . '-source';
+                $this->content = file_get_contents($filePath);
+                $this->preprocessContent();
+                return $this;
+            }
+            \Log::warning("Source file not found: {$options['source']} (resolved to: {$filePath})");
+            return $this;
+        }
+        
+        if (isset($options['callback'])) {
+            [$serviceClass] = explode('@', $options['callback'], 2);
+            $options['slug'] = $this->slug ?: Str::slug(str_replace('Service', '-callback', class_basename($serviceClass)));
+            // Service callback
+            return $this->createFromCallback($options['callback'], $options);
+        }
+        
+        if (isset($options['view'])) {
+            $this->slug = $this->slug ?: $options['view'] . '-view';
+            // Laravel view
+            return $this->createFromView($options['view'], $options, $options['viewData'] ?? []);
+        }
+        
+        // If no content source specified, create empty block
+        $this->content = '';
+        return $this;
+    }
+    
+    /**
+     * Determine block slug from configuration
+     * Moves slug determination logic from PageService to BlockService
+     */
+    protected function getSlug() {
+        return $this->slug;
     }
 
     /**
@@ -72,38 +132,20 @@ class BlockService {
      * This method handles all the content source logic that was previously in PageService
      */
     public function createFromContentSource(array $contentSource, array $options = [], array $pageConfig = []): ?self {
-        switch ($contentSource['type']) {
-            case 'content':
-                // Direct HTML/text content
-                return $this->create($contentSource['data'], $options);
-                
-            case 'source':
-                // File source (markdown, etc.)
-                $filePath = resolve_file_path($contentSource['data']);
-                if (file_exists($filePath)) {
-                    return $this->create($filePath, $options);
-                }
-                \Log::warning("Source file not found: {$contentSource['data']} (resolved to: {$filePath})");
-                return null;
-                
-            case 'callback':
-                // Service callback
-                return $this->createFromCallback($contentSource['data'], $options);
-                
-            case 'view':
-                // Laravel view - pass page config as view data
-                return $this->createFromView($contentSource['data'], $options, $pageConfig);
-                
-            default:
-                return null;
-        }
+        // Build comprehensive options by combining content source with existing options
+        $allOptions = array_merge($options, [
+            $contentSource['type'] => $contentSource['data'],
+            'pageConfig' => $pageConfig,
+        ]);
+        
+        // Let the main create() method handle everything
+        return $this->create($allOptions);
     }
 
     /**
      * Create a block from service callback
      */
     public function createFromCallback(string $callback, array $options = []): ?self {
-        error_log("[DEBUG] Creating callback block for: {$callback}");
         
         // Parse callback string like "HelloService@render"
         [$serviceClass, $method] = explode('@', $callback, 2);
@@ -118,8 +160,6 @@ class BlockService {
                 }
             }
             
-            error_log("[DEBUG] Resolved service class: {$serviceClass}");
-            
             // Resolve service instance
             $service = app($serviceClass);
             
@@ -130,13 +170,10 @@ class BlockService {
             
             // Call the method and get content
             $content = $service->$method();
-            error_log("[DEBUG] Service method output length: " . strlen($content));
             
+            $options['content'] = $content; // Set content in options
             // Create block with the rendered content
-            $resultBlock = $this->create($content, $options);
-            error_log("[DEBUG] Created block: " . (is_object($resultBlock) ? get_class($resultBlock) : 'null'));
-            
-            return $resultBlock;
+            return $this->create($options);
             
         } catch (\Exception $e) {
             \Log::error("Error calling {$callback}: " . $e->getMessage());
@@ -175,6 +212,7 @@ class BlockService {
         return $this->title;
     }
 
+
     /**
      * Get block configuration/properties
      */
@@ -182,6 +220,7 @@ class BlockService {
         return [
             'title' => $this->title,
             'id' => $this->id,
+            'slug' => $this->slug,
             'source' => $this->source,
             'sourceFormat' => $this->sourceFormat,
             'options' => $this->options,
@@ -212,9 +251,6 @@ class BlockService {
             $this->content = $this->source;
         }
 
-        // Set properties from options
-        $this->title = $this->options['title'] ?? null;
-        $this->id = $this->options['id'] ?? null;
 
         return $this;
     }

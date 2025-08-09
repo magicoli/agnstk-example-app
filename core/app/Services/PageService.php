@@ -145,8 +145,6 @@ class PageService {
      * Get page configuration including proper title fallback
      */
     public function getConfig(string $slug): array {
-        error_log('[DEBUG] ' . __METHOD__ . " called with slug: {$slug}");
-        
         // First, check for config-based pages
         $pages = config('pages', []);
         $pageConfig = $pages[$slug] ?? [];
@@ -161,7 +159,7 @@ class PageService {
         
         // If still no page config found, return empty configuration
         if (empty($pageConfig)) {
-            error_log("[DEBUG] No page configuration found for slug: {$slug}");
+            error_log("[ERROR] No page configuration found for slug: {$slug}");
             return [
                 'title' => 'Page Not Found',
                 'description' => '',
@@ -179,13 +177,15 @@ class PageService {
         
         if ($contentSource) {
             $blockService = app(\App\Services\BlockService::class);
-            $blockOptions = [
-                'id' => $slug . '-content',
-                'title' => $pageConfig['content_title'] ?? null,
-            ];
             
-            // Single line to create block - let BlockService handle all the logic
-            $contentBlock = $blockService->createFromContentSource($contentSource, $blockOptions, $pageConfig);
+            // Build comprehensive block options - let BlockService handle all logic
+            $blockOptions = [
+                'id' => $slug . '-content',                    // Instance-specific HTML id
+                $contentSource['type'] => $contentSource['data'], // Semantic content parameter
+            ];
+
+            // Single line to create block - BlockService handles everything
+            $contentBlock = $blockService->create($blockOptions);
         }
         
 
@@ -211,7 +211,6 @@ class PageService {
      */
     protected function buildServicePageConfig(array $serviceRegistration): array {
         $serviceClass = $serviceRegistration['service_class'];
-        error_log("[DEBUG] Building service page config for: {$serviceClass}");
         
         try {
             // Get service instance and its configuration
@@ -230,7 +229,6 @@ class PageService {
                 'template' => $pageConfig['template'] ?? 'page',
             ];
             
-            error_log("[DEBUG] Built service config: " . json_encode($config));
             return $config;
             
         } catch (\Exception $e) {

@@ -53,25 +53,17 @@ return [
                 It should be post-procesed like any other page content for shortcodes, or standard 
                 Laravel layout tags.
             </p>            
-            <p>
-                Post-processing (like shortcodes) must be applied to any block, regardless of the type 
-                of source or the view() used.
-            </p>
-            <p>
-                This is a static page, but it can still use shortcodes, blocks, or any other dynamic content
-                that is registered in the system.
-            </p>
-            <p>
-                We might need to create a Trait for renderable classes, to make sure we have a common default
-                render post-processiig method, applied to the content of render().
-            </p>
             <div class="col-lg-6 mx-auto card">
                 <div class="card-header">
                     <h3 class="p-0 m-0">Testing shortcode processing in static HTML:</h3>
                 </div>
                 <div class="card-body">
                     <div class="text-bold">
-                        [hello title="Static Page Hello" class="bg-primary text-white"]
+                        [hello title="Hello (with shortcode)" class=""]
+                    </div>
+                    <hr>
+                    <div class="text-bold">
+                        {{hello title="Hello (with double bracked tag)" class=""}}
                     </div>
                 </div>
             </div>
