@@ -109,13 +109,11 @@ class HelloService implements Renderable {
     }
 
     /**
-     * Main render method - single source of truth
-     * Always returns HTML via view() - no hardcoded HTML!
+     * Main render method - returns view data for BlockService to process
+     * BlockService will handle the actual view rendering and title logic
      */
-    public function render(array $options = []): string {
-        $show_title = $options['show_title'] ?? $this->show_title ?? true;
-        // Merge instance options with render-time options (render options take precedence)
-        $title = $show_title ? ( $options['title'] ?? $this->title ?? '') : '';
+    public function render(array $options = []): array {
+        // Prepare content (never include title in content - BlockService handles titles)
         $content = $options['content'] ?? $this->content ?? _('This is a demonstration of the AGNSTK service system.');
         $attributes = array_merge($this->attributes, $options['attributes'] ?? []);
 
@@ -125,15 +123,14 @@ class HelloService implements Renderable {
         error_log($debug_msg);
         $content .= "\n<pre>" . $debug_msg . "</pre>"; // Add debug info to content
         
-        $data = array_filter([
-            'title' => $title,
+        // Return view arguments for BlockService to process
+        return [
+            'title' => $this->title, // BlockService will decide whether to show this based on show_title
             'content' => $content,
             'platform' => $this->getCurrentPlatform(),
             'timestamp' => now()->format('Y-m-d H:i:s'),
-            'attributes' => $attributes, // Pass attributes to view
-        ]);
-        
-        return view('components.block', $data)->render();
+            'attributes' => $attributes,
+        ];
     }
 
     /**

@@ -182,14 +182,39 @@ class BlockService {
             }
             
             // Call the method and get content
-            $content = $service->$method();
-            
-            // Get title from service if available and pass it in options
-            if (method_exists($service, 'getTitle')) {
-                $options['title'] = $service->getTitle();
+            $serviceOptions = [
+                '_block_service_call' => true, // Flag to indicate BlockService is calling
+            ];
+            if (isset($options['container-title']) && method_exists($service, 'getTitle')) {
+                $serviceOptions['container_title'] = $options['container-title'];
+                $serviceOptions['show_title'] = !($options['container-title'] === $service->getTitle());
             }
-            $this->preprocessContent();
-            $options['content'] = $content; // Set content in options
+            
+            $result = $service->$method($serviceOptions);
+            
+            // Handle different return types from services
+            if (is_array($result)) {
+                // Service returned view arguments - merge with options and handle title logic
+                $options = array_merge($options, $result);
+                
+                // Apply show_title logic to the title from service
+                if (isset($serviceOptions['show_title']) && !$serviceOptions['show_title']) {
+                    $options['title'] = ''; // Hide title if show_title is false
+                }
+                
+                // Let BlockService render the view with the service's view arguments
+                return $this->create($options);
+            } else {
+                // Service returned rendered HTML (legacy) - treat as content
+                $content = $result;
+                
+                // Get title from service if available and pass it in options
+                if (method_exists($service, 'getTitle')) {
+                    $options['title'] = $service->getTitle();
+                }
+                
+                $options['content'] = $content; // Set content in options
+            }
             // Create block with the rendered content
             $options = array_merge($this->options, $options); // Merge with existing options
             if($options['title'] === $options['container-title']) {
@@ -324,9 +349,14 @@ class BlockService {
      * Preprocessing method for content conversion (markdown to HTML, etc.)
      * This runs before content is rendered and converts source formats to HTML
      */
-    public function preprocessContent(string $content = null, string $sourceFormat = null): string {
+    public function preprocessContent($content = null, string $sourceFormat = null): string {
         $sourceFormat = $sourceFormat ?: $this->detectSourceFormat();
         $content = $content ?? $this->content;
+
+        // Handle case where content is an array (from services returning view arguments)
+        if (is_array($content)) {
+            $content = $content['content'] ?? '';
+        }
 
         if(empty($content)) {
             return ''; // Nothing to process
