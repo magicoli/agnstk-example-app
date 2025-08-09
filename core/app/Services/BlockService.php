@@ -7,10 +7,10 @@ use Illuminate\Support\Str;
 class BlockService {
     use \App\Traits\RenderableTrait;
     
-    protected $content;
+    protected string $content = '';
+    protected array $options = [];
     protected $source;
     protected $sourceFormat;
-    protected $options;
     protected $view; // View name for rendering
     protected $callback; // Callback for dynamic content rendering
     // Instance properties
@@ -28,10 +28,31 @@ class BlockService {
      * @param array $options properties for the block (source, content, view, id, title, etc.)
      */
     public function __construct($options = []) {
+        // Normalize input - if we receive direct content instead of options array
+        if (is_string($options)) {
+            $options = ['content' => $options];
+        }
+        
+        // Ensure we always have a proper array
+        $this->options = is_array($options) ? $options : [];
+        
+        // Validate and normalize content - ensure it's always a string
+        $content = $this->options['content'] ?? '';
+        if (is_array($content)) {
+            // If content is an array, extract the content key or first meaningful value
+            if (isset($content['content'])) {
+                $content = $content['content'];
+            } elseif (isset($content[0])) {
+                $content = $content[0];
+            } else {
+                $content = '';
+            }
+        }
+        
+        // Set properties with validated values
         $this->id = $this->options['id'] ?? null;
-        $this->options = $options ?? [];
         $this->title = $this->options['title'] ?? null;
-        $this->content = $this->options['content'] ?? null;
+        // $this->content = (string) $content; // Ensure content is always a string
         $this->view = $this->options['view'] ?? null;
         $this->source = $this->options['source'] ?? null;
         $this->callback = $this->options['callback'] ?? null;
@@ -43,15 +64,14 @@ class BlockService {
         // PREPROCESSING: Convert markdown to HTML if needed
         $preprocessed = $this->preprocessContent();
         
-        $debug = [
-            '$this->show_title' => $this->show_title ? 'true' : 'false',
-            '$this->options[\'show_title\']' => ($this->options['show_title'] ?? true) ? 'true' : 'false',
-        ];
-        error_log("[DEBUG] BlockService::" . __FUNCTION__ . " - options: " . print_r($debug, true));
-        $preprocessed .= "\n<pre>DEBUG: " . __METHOD__ . " options=" . print_r($debug, true) . "</pre>";
+        // Ensure preprocessed content is a string (should be after preprocessing)
+        if (!is_string($preprocessed)) {
+            error_log("[ERROR] BlockService::render() - preprocessed content is not a string: " . gettype($preprocessed));
+            $preprocessed = '';
+        }
+        
         // Use the standard block component
         $view = view('components.block', [
-        // $viewHtml = view('components.block', [
             'title' => $this->show_title ? $this->title : '',
             'content' => $preprocessed,
             'attributes' => $this->options['attributes'] ?? [],
@@ -60,7 +80,6 @@ class BlockService {
         // POST-PROCESSING: Apply shortcodes and other HTML adjustments
         // Pass the original source format so shortcodes use the right syntax
         $postprocessed = $this->postProcessContent($view);
-        // $postprocessed = $this->postProcessContent($viewHtml);
 
         return $postprocessed;
     }
@@ -219,14 +238,7 @@ class BlockService {
             $options = array_merge($this->options, $options); // Merge with existing options
             if($options['title'] === $options['container-title']) {
                 $options['show_title'] = false; // Hide title if it matches container title
-            // } else {
-            //     $options['hide_title'] = false; // Show title if it doesn't match
             }
-            // DEBUG
-            $debug = $options; unset($debug['content']);
-            $debug['show_title'] = $options['show_title'] ? 'true' : 'false';
-            error_log("[DEBUG] BlockService::createFromCallback - options: " . print_r($debug, true));
-            $options['content'] .= "\n<pre>DEBUG: " . __METHOD__ . " options=" .print_r($debug, true) . "</pre>"; // Add debug info to content
             return $this->create($options);
             
         } catch (\Exception $e) {
@@ -355,8 +367,12 @@ class BlockService {
 
         // Handle case where content is an array (from services returning view arguments)
         if (is_array($content)) {
+            error_log("[WARNING] BlockService::preprocessContent() - received array content, extracting string");
             $content = $content['content'] ?? '';
         }
+        
+        // Ensure content is always a string
+        $content = (string) $content;
 
         if(empty($content)) {
             return ''; // Nothing to process
@@ -414,6 +430,14 @@ class BlockService {
      */
     protected function processShortcodes(string $content = null, string $sourceFormat = null): string {
         $content = $content ?? $this->content ?: '';
+        
+        // Safety check - ensure content is always a string
+        if (is_array($content)) {
+            error_log("[ERROR] BlockService::processShortcodes() - received array instead of string");
+            $content = $content['content'] ?? '';
+        }
+        $content = (string) $content;
+        
         $sourceFormat = $sourceFormat ?: $this->detectSourceFormat($content);
 
         $shortcodeService = app(\App\Services\ShortcodeService::class);

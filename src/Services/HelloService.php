@@ -116,12 +116,6 @@ class HelloService implements Renderable {
         // Prepare content (never include title in content - BlockService handles titles)
         $content = $options['content'] ?? $this->content ?? _('This is a demonstration of the AGNSTK service system.');
         $attributes = array_merge($this->attributes, $options['attributes'] ?? []);
-
-        $debug = $options; unset($debug['content']);
-        $debug['show_title'] = ($this->show_title ?? $options['show_title'] ?? true) ? 'true' : 'false';
-        $debug_msg = "[DEBUG] HelloService::render options: " . print_r($debug, true);
-        error_log($debug_msg);
-        $content .= "\n<pre>" . $debug_msg . "</pre>"; // Add debug info to content
         
         // Return view arguments for BlockService to process
         return [

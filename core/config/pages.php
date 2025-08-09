@@ -26,18 +26,15 @@ return [
         // 'enabled' => false,              // boolean|logged_in|logged_out|auth_required
     ],
     'developers' => [
-        'title' => 'Developers',
+        // 'title' => 'Developers',
         'source' => 'core/DEVELOPERS.md', // Show README content on home page
         'menu' => true,
     ],
     
-    'dashboard' => [
-        'title' => 'Dashboard',
-        'uri' => '/user/dashboard',
-        'view' => 'dashboard-content',
-        'menu' => 'user',
-        // 'auth_required' => true,
-        'enabled' => 'auth_required', // Only enabled for logged-in users
+    'callback-page' => [
+        'title' => 'Callback Page',
+        'callback' => 'HelloService@render',
+        'menu' => true,
     ],
 
     'static-page' => [
@@ -71,14 +68,22 @@ return [
         'menu' => true,
     ],
 
-    'rendered-service' => [
-        'title' => 'Rendered Service',
-        'callback' => 'HelloService@render',
+    'markdown-page' => [
+        'source' => 'HELLO.md', // Show README content on this page
         'menu' => true,
     ],
 
-    'hello-page-md' => [
-        'source' => 'HELLO.md', // Show README content on this page
-        'menu' => true,
+    'dashboard' => [
+        'title' => 'Dashboard',
+        'uri' => '/user/dashboard',
+        'view' => 'dashboard-content',
+        'menu' => [
+            'menu_id' => 'user', // Defaults to 'main'
+            'label' => 'Dashboard',
+            'order' => 90, // Defaults to 10
+            'enabled' => true, // Defaults to false
+        ],
+        // 'auth_required' => true,
+        'enabled' => 'auth_required', // Only enabled for logged-in users
     ],
 ];

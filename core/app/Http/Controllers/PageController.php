@@ -69,14 +69,6 @@ class PageController extends Controller {
         // Use unified getInstance strategy to get the appropriate controller
         $pageCtrl = $this->getInstance($slug);
 
-        // Debug: Let's see exactly what Laravel is giving us
-        \Log::info('PageController::show - Laravel route parameters debug', [
-            'method_param_slug' => $slug,
-            'resolved_slug' => $pageCtrl->slug,
-            'route_parameters' => request()->route()->parameters(),
-            'route_defaults' => request()->route()->defaults,
-        ]);
-
         // Check authentication if required
         if (($pageCtrl->page['auth_required'] ?? false) && !auth()->check()) {
             return redirect()->route('login');
