@@ -180,7 +180,7 @@ class PageService {
             
             // Build comprehensive block options - let BlockService handle all logic
             $blockOptions = [
-                'id' => $slug . '-content',                    // Instance-specific HTML id
+                'container-id' => $slug . '-content',                    // Instance-specific HTML id
                 $contentSource['type'] => $contentSource['data'], // Semantic content parameter
             ];
 

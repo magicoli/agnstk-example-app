@@ -85,6 +85,12 @@ class BlockService {
             // Direct HTML/text content
             $this->slug = ($this->slug ?: $options['container-id'] ?? 'content') . '-block';
             $this->content = $options['content'];
+            
+            // Extract title from HTML content if not already set
+            if (!$this->title) {
+                $this->title = $this->extractTitleFromHtml($this->content);
+            }
+            
             return $this;
         }
         
@@ -94,6 +100,17 @@ class BlockService {
             if (file_exists($filePath)) {
                 $this->slug = Str::slug(pathinfo($options['source'], PATHINFO_FILENAME)) . '-source';
                 $this->content = file_get_contents($filePath);
+                
+                // Extract title from markdown/content if not already set
+                if (!$this->title) {
+                    $extension = strtolower(pathinfo($options['source'], PATHINFO_EXTENSION));
+                    if ($extension === 'md' || $extension === 'markdown') {
+                        $this->title = $this->extractTitleFromMarkdown($this->content);
+                    } else {
+                        $this->title = $this->extractTitleFromHtml($this->content);
+                    }
+                }
+                
                 $this->preprocessContent();
                 return $this;
             }
@@ -170,6 +187,11 @@ class BlockService {
             
             // Call the method and get content
             $content = $service->$method();
+            
+            // Get title from service if available and pass it in options
+            if (method_exists($service, 'getTitle')) {
+                $options['title'] = $service->getTitle();
+            }
             
             $options['content'] = $content; // Set content in options
             // Create block with the rendered content
@@ -349,5 +371,25 @@ class BlockService {
 
         $shortcodeService = app(\App\Services\ShortcodeService::class);
         return $shortcodeService->processShortcodes($content, $sourceFormat);
+    }
+    
+    /**
+     * Extract title from markdown content (first # header)
+     */
+    protected function extractTitleFromMarkdown(string $markdown): ?string {
+        if (preg_match('/^#\s+(.+)$/m', $markdown, $matches)) {
+            return trim($matches[1]);
+        }
+        return null;
+    }
+    
+    /**
+     * Extract title from HTML content (first h1 tag)
+     */
+    protected function extractTitleFromHtml(string $html): ?string {
+        if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $html, $matches)) {
+            return strip_tags($matches[1]);
+        }
+        return null;
     }
 }
