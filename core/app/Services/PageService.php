@@ -178,16 +178,20 @@ class PageService {
         $contentSource = $this->determineContentSource($pageConfig);
         
         if ($contentSource) {
-            $block = app(\App\Services\BlockService::class);
-            $contentBlock = $this->createContentBlock($block, $contentSource, $pageConfig, $slug);
+            $blockService = app(\App\Services\BlockService::class);
+            $blockOptions = [
+                'id' => $slug . '-content',
+                'title' => $pageConfig['content_title'] ?? null,
+            ];
+            
+            // Single line to create block - let BlockService handle all the logic
+            $contentBlock = $blockService->createFromContentSource($contentSource, $blockOptions, $pageConfig);
         }
         
 
-        // $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : $contentBlock->title;
-
-        // DEBUG
+        // Handle page title with proper fallback logic
         $pageTitle = isset($pageConfig['title']) ? $pageConfig['title'] : 'no page title';
-        $pageTitle .= ' (' . ($contentBlock->title ?: 'no content title') . ')';
+        $pageTitle .= ' (' . ($contentBlock ? ($contentBlock->getTitle() ?: 'no content title') : 'no content block') . ')';
 
         $pageConfig['title'] = $pageTitle;
         
@@ -198,7 +202,7 @@ class PageService {
             'content' => $pageConfig['content'] ?? '',
             'contentBlock' => $contentBlock,
             'template' => $pageConfig['template'] ?? 'default',
-            'showContentTitle' => $this->shouldShowContentTitle($pageTitle, $contentBlock),
+            'showContentTitle' => $contentBlock ? $contentBlock->shouldShowContentTitle($pageTitle) : false,
         ];
     }
     
@@ -260,125 +264,6 @@ class PageService {
         }
         
         return null;
-    }
-    
-    /**
-     * Create content block based on source type
-     */
-    protected function createContentBlock($block, array $contentSource, array $pageConfig, string $slug) {
-        $options = [
-            'id' => $slug . '-content',
-            'title' => $pageConfig['content_title'] ?? null,
-        ];
-        
-        switch ($contentSource['type']) {
-            case 'content':
-                // Direct HTML/text content
-                return $block->create($contentSource['data'], $options);
-                
-            case 'source':
-                // File source (markdown, etc.)
-                $filePath = resolve_file_path($contentSource['data']);
-                if (file_exists($filePath)) {
-                    return $block->create($filePath, $options);
-                }
-                \Log::warning("Source file not found: {$contentSource['data']} (resolved to: {$filePath})");
-                return null;
-                
-            case 'callback':
-                // Service callback
-                return $this->createCallbackBlock($contentSource['data'], $options);
-                
-            case 'view':
-                // Laravel view
-                return $this->createViewBlock($contentSource['data'], $options, $pageConfig);
-                
-            default:
-                return null;
-        }
-    }
-    
-    /**
-     * Create a block from service callback
-     */
-    protected function createCallbackBlock(string $callback, array $options) {
-        error_log("[DEBUG] Creating callback block for: {$callback}");
-        
-        // Parse callback string like "HelloService@render"
-        [$serviceClass, $method] = explode('@', $callback, 2);
-        
-        try {
-            // Try to resolve with full namespace first
-            if (!class_exists($serviceClass)) {
-                // Try with YourApp namespace (our service namespace)
-                $namespacedClass = "YourApp\\Services\\{$serviceClass}";
-                if (class_exists($namespacedClass)) {
-                    $serviceClass = $namespacedClass;
-                }
-            }
-            
-            error_log("[DEBUG] Resolved service class: {$serviceClass}");
-            
-            // Resolve service instance
-            $service = app($serviceClass);
-            
-            if (!method_exists($service, $method)) {
-                \Log::error("Method {$method} not found on {$serviceClass}");
-                return null;
-            }
-            
-            // Call the method and get content
-            $content = $service->$method();
-            error_log("[DEBUG] Service method output length: " . strlen($content));
-            
-            // Create block with the rendered content
-            $block = app(\App\Services\BlockService::class);
-            $resultBlock = $block->create($content, $options);
-            error_log("[DEBUG] Created block: " . (is_object($resultBlock) ? get_class($resultBlock) : 'null'));
-            
-            return $resultBlock;
-            
-        } catch (\Exception $e) {
-            \Log::error("Error calling {$callback}: " . $e->getMessage());
-            error_log("[ERROR] Exception in createCallbackBlock: " . $e->getMessage());
-            return null;
-        }
-    }
-    
-    /**
-     * Create a block from Laravel view
-     */
-    protected function createViewBlock(string $viewName, array $options, array $pageConfig) {
-        try {
-            // Check if view exists
-            if (!view()->exists($viewName)) {
-                \Log::warning("View {$viewName} not found, falling back to default");
-                return null;
-            }
-            
-            // Render view with page config data
-            $content = view($viewName, $pageConfig)->render();
-            
-            // Create block with the rendered content
-            $block = app(\App\Services\BlockService::class);
-            return $block->create($content, $options);
-            
-        } catch (\Exception $e) {
-            \Log::error("Error rendering view {$viewName}: " . $e->getMessage());
-            return null;
-        }
-    }
-    
-    /**
-     * Determine if content title should be shown in the block
-     */
-    protected function shouldShowContentTitle(?string $pageTitle, $contentBlock): bool {
-        if (!$contentBlock || !$contentBlock->title || !$pageTitle) {
-            return true; // Show content title if we have one and no page title
-        }
-        
-        // Hide content title if it's the same as page title
-        return $pageTitle !== $contentBlock->title;
     }
     
     /**
@@ -511,22 +396,6 @@ class PageService {
         }
         
         return null;
-    }
-
-    /**
-     * Render block content
-     */
-    private static function renderBlockContent(string $blockId): string {
-        $blockConfig = config('blocks.' . $blockId, []);
-        if(empty($blockConfig) || !($blockConfig['enabled'] ?? false)) {
-            // If debug enabled, return debug message, otherwise empty content
-            if (config('app.debug', false)) {
-                return '<div class="alert alert-warning">Block "' . $blockId . '" not found or disabled.</div>';
-            }
-            return '';
-        }
-
-        return '<div class="block-content">' . ($block['content'] ?? '') . '</div>';
     }
 
     /**

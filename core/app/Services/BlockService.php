@@ -71,7 +71,7 @@ class BlockService {
      * Create content block from different source types
      * This method handles all the content source logic that was previously in PageService
      */
-    public function createFromContentSource(array $contentSource, array $options = []): ?self {
+    public function createFromContentSource(array $contentSource, array $options = [], array $pageConfig = []): ?self {
         switch ($contentSource['type']) {
             case 'content':
                 // Direct HTML/text content
@@ -91,8 +91,8 @@ class BlockService {
                 return $this->createFromCallback($contentSource['data'], $options);
                 
             case 'view':
-                // Laravel view
-                return $this->createFromView($contentSource['data'], $options);
+                // Laravel view - pass page config as view data
+                return $this->createFromView($contentSource['data'], $options, $pageConfig);
                 
             default:
                 return null;
@@ -186,6 +186,18 @@ class BlockService {
             'sourceFormat' => $this->sourceFormat,
             'options' => $this->options,
         ];
+    }
+
+    /**
+     * Determine if content title should be shown in the block
+     */
+    public function shouldShowContentTitle(?string $pageTitle): bool {
+        if (!$this->title || !$pageTitle) {
+            return true; // Show content title if we have one and no page title
+        }
+        
+        // Hide content title if it's the same as page title
+        return $pageTitle !== $this->title;
     }
     
     /**

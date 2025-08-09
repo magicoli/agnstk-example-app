@@ -11,63 +11,17 @@
 return [
     'example_block' => [
         'title' => 'Example Block',
+        'description' => 'This is an example block that can be used in pages.',
+        'slug' => 'example-block',
+        'shortcode' => 'example_block', // Shortcode to use in content
         'content' => '<p>Example block content goes here.</p>',
+        'view' => 'example-block',
+        'callback' => 'App\\Blocks\\ExampleBlock',
+        'source' => 'example.md', // Optional source file
         'enabled' => true,
+        'attributes' => [
+            'class' => 'example-block',
+            'data-example' => 'true',
+        ],
     ],
 ];
-//     'logo' => env('APP_LOGO', '/images/logo.png'),
-//     'blocks' => [
-//         'hello' => [
-//             'title' => 'Hello, Agnostic World',
-//             'description' => 'A simple greeting block demonstrating AGNSTK capabilities',
-//             'shortcode' => 'agnstk-hello',
-//             'enabled' => true
-//         ]
-//     ],
-//     'pages' => [
-//         'hello' => [
-//             'title' => 'Hello',
-//             'slug' => 'hello',
-//             'blocks' => ['hello'],
-//             'enabled' => true
-//         ],
-//         'shortcodes' => [
-//             'title' => 'Available Shortcodes',
-//             'slug' => 'shortcodes',
-//             'content' => 'shortcodes',
-//             'enabled' => true
-//         ]
-//     ],
-//     'routes' => [
-//         'public' => [
-//             'hello' => '/hello',
-//             'shortcodes' => '/shortcodes'
-//         ],
-//         'admin' => [
-//             'settings' => '/admin/settings'
-//         ],
-//         'api' => [
-//             'manifest' => '/manifest.json'
-//         ]
-//     ],
-
-//     'api' => [
-//         'enabled' => true,
-//         'require_auth' => true,
-//         'endpoints' => [
-//             'blocks' => '/api/blocks',
-//             'config' => '/api/config',
-//             'pages' => '/api/pages'
-//         ],
-//         'rate_limit' => [
-//             'requests_per_minute' => 60,
-//             'burst_limit' => 10
-//         ]
-//     ],
-//     'security' => [
-//         'csrf_protection' => true,
-//         'xss_protection' => true,
-//         'content_security_policy' => true,
-//         'config_protection' => true
-//     ]
-// ];
