@@ -35,6 +35,7 @@ class BlockService {
         $this->view = $this->options['view'] ?? null;
         $this->source = $this->options['source'] ?? null;
         $this->callback = $this->options['callback'] ?? null;
+        $this->show_title = $this->options['show_title'] ?? true; // Whether to show the title in the block
         $this->attributes = $this->options['attributes'] ?? []; // Will be completed later
     }
     
@@ -42,6 +43,11 @@ class BlockService {
         // PREPROCESSING: Convert markdown to HTML if needed
         $preprocessed = $this->preprocessContent();
         
+        $debug = [
+            '$this->show_title' => $this->show_title ? 'true' : 'false',
+            '$this->options[\'show_title\']' => ($this->options['show_title'] ?? true) ? 'true' : 'false',
+        ];
+        $preprocessed .= "\n<pre>DEBUG: " . __METHOD__ . print_r($debug, true) . "</pre>";
         // Use the standard block component
         $view = view('components.block', [
         // $viewHtml = view('components.block', [
@@ -181,10 +187,20 @@ class BlockService {
             if (method_exists($service, 'getTitle')) {
                 $options['title'] = $service->getTitle();
             }
-
-            $options['title'] = $this->extractTitle($content); // Extract title from content if available
+            $this->preprocessContent();
             $options['content'] = $content; // Set content in options
             // Create block with the rendered content
+            $options = array_merge($this->options, $options); // Merge with existing options
+            if($options['title'] === $options['container-title']) {
+                $options['show_title'] = false; // Hide title if it matches container title
+            // } else {
+            //     $options['hide_title'] = false; // Show title if it doesn't match
+            }
+            // DEBUG
+            $debug = $options; unset($debug['content']);
+            $debug['show_title'] = $options['show_title'] ? 'true' : 'false';
+            error_log("[DEBUG] BlockService::createFromCallback - options: " . print_r($debug, true));
+            $options['content'] .= "\n<pre>DEBUG: " . __METHOD__ . print_r($debug, true) . "</pre>"; // Add debug info to content
             return $this->create($options);
             
         } catch (\Exception $e) {
@@ -206,12 +222,13 @@ class BlockService {
             }
             
             // Render view with provided data
-            $content = view($viewName, $viewData)->render();
-            $options['title'] = $this->extractTitle($content); // Extract title from content if available
-            $content = $this->content;
-
+            $this->content = view($viewName, $viewData)->render();
+            $options['content'] = $this->content;
+            $options['title'] = 'createFromView ' . $this->extractTitle($content); // Extract title from content if available
+            
             // Create block with the rendered content
-            return $this->create($content, $options);
+            $options = array_merge($this->options, $options); // Merge with existing options
+            return $this->create($options);
             
         } catch (\Exception $e) {
             \Log::error("Error rendering view {$viewName}: " . $e->getMessage());
@@ -321,7 +338,7 @@ class BlockService {
 
         $this->content = $content; // Update content after conversion
 
-        $this->extractTitle();
+        $this->title = $this->extractTitle();
 
         // Add other preprocessing steps here (future extensibility)
         // e.g., $content = $this->preprocessTemplateVariables($content);
@@ -339,7 +356,7 @@ class BlockService {
 
         // Apply shortcode processing to HTML content
         $htmlContent = $this->processShortcodes($htmlContent, $sourceFormat);
-        
+
         // Apply any other post-processing here (future extensibility)
         // e.g., $htmlContent = $this->processInternalLinks($htmlContent);
         // e.g., $htmlContent = $this->processImageOptimization($htmlContent);
@@ -394,13 +411,17 @@ class BlockService {
 
     protected function extractTitle($content = null): ?string {
         $content = $content ?? $this->content;
+        $title = $this->title ?? $this->getTitle() ?: null;
 
         if (preg_match('/<h1[^>]*>(.*?)<\/h1>/is', $this->content, $matches)) {
             $title = strip_tags($matches[1]);
-            $this->title = $this->title ?? $title; // Set title only if not already set or matches
-            $this->content = str_replace($matches[1], '', $this->content); // Remove title from content
+            $content = str_replace($matches[1], '', $this->content); // Remove title from content
         }
-        return $this->content;
+
+        // Update the title and content properties
+        $this->content = $content;
+        $this->title = $title;
+        return $this->title;
     }
 
 

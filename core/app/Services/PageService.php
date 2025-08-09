@@ -181,6 +181,7 @@ class PageService {
             // Build comprehensive block options - let BlockService handle all logic
             $blockOptions = [
                 'container-id' => $slug . '-content',                    // Instance-specific HTML id
+                'container-title' => $pageConfig['title'] ?? null,       // Container title for context
                 $contentSource['type'] => $contentSource['data'], // Semantic content parameter
             ];
 
