@@ -2,204 +2,83 @@
 
 namespace YourApp\Services;
 
-use Illuminate\Contracts\Support\Renderable;
-use App\Traits\RenderableTrait;
+use App\Services\BaseService;
 
-class HelloService implements Renderable {
-    use RenderableTrait;
+/**
+ * HelloService - Simple example service
+ * 
+ * This demonstrates the minimal code needed to create an AGNSTK service.
+ * New developers should use this as a template for their own services.
+ */
+class HelloService extends BaseService {
     /**
-     * Service configuration for editors
+     * Initialize service configuration
      */
-
-    protected static $initialized = false; // Track if service is initialized
-
-    protected static $label;
-    protected static $description;
-    protected static $category;
-    protected static $icon;
-    protected static $keywords;
-    protected static $uri;
-
-    /**
-     * What this service provides
-     * This tells AGNSTK what features to enable automatically
-     */
-    protected static array $provides = []; // DO NOT SET VALUE HERE but when initializing the service
-    
-    // Default values for dynamic content
-    protected static $defaultTitle;
-    protected static $defaultContent;
-
-    protected string $title;
-    protected array $data = [];
-    protected string $content;
-    protected array $attributes = []; // For CSS classes and other HTML attributes
-
-    public function __construct(array $options = []) {
-        // Initialize static properties
-        self::init();
-        
-        // Set instance properties from options
-        $this->title = $options['title'] ?? static::$defaultTitle;
-        $this->content = $options['content'] ?? static::$defaultContent;
-        $this->attributes = $options['attributes'] ?? [];
-
-        self::provides();
-    }
-
-    /**
-     * Set service instance properties
-     * This is useful for dynamic configuration or when properties need to be set after instantiation
-     */
-    public static function init() {
-        if(self::$initialized) {
-            return; // Already initialized
+    public static function init(): void {
+        if (static::$initialized) {
+            return;
         }
 
-        // Only lable is set here (for admin and editors).
-        // Title is dynamic so it can not be set here.
-        // It should be set with arguments passed to the instance or by the calling method
-        // including shortcode, block or page instances.
+        static::$label = _('Hello World');
+        static::$description = _('A simple Hello World service for demonstration purposes');
+        static::$category = _('example');
+        static::$icon = 'smiley';
+        static::$keywords = ['hello', 'example', 'demo'];
+        static::$uri = '/hello';
 
-        self::$label = _('Hello World');
-        self::$description = _('A simple Hello World service for demonstration purposes');
-        self::$category = _('example');
-        self::$icon = 'smiley';
-        self::$keywords = ['hello', 'example', 'demo'];
-        self::$uri = '/hello';
+        static::$defaultTitle = _('Hello World');
+        static::$defaultContent = _('This is a demonstration of the AGNSTK service system.');
 
-        // Set default values for dynamic content
-        self::$defaultTitle = _('Hello World');
-        self::$defaultContent = _('This is a demonstration of the service system.');
-
-        self::$initialized = true; // Mark as initialized
+        parent::init();
     }
 
     /**
-     * Return sevice provides configuration
+     * Define what this service provides
      */
     public static function provides(): array {
-        if(!empty(self::$provides)) {
-            return self::$provides;
+        if (!empty(static::$provides)) {
+            return static::$provides;
         }
-        self::init();
 
-        // Service provides configuration - dynamic values set here
-        self::$provides = [
+        static::init();
+
+        static::$provides = [
             'block' => true,
             'shortcode' => 'hello',
-            'uri' => self::$uri,
+            'uri' => static::$uri,
             'menu' => [
                 'label' => _('Hello World'),
-                'uri' => self::$uri,
-                'icon' => self::$icon,
+                'uri' => static::$uri,
+                'icon' => static::$icon,
                 'order' => 10,
                 'enabled' => true,
             ],
             'api' => true,
             'page' => [
                 'title' => _('Hello World'),
-                'uri' => self::$uri,
-                'template' => 'page', // Use generic page template
+                'uri' => static::$uri,
+                'template' => 'page',
                 'meta_description' => _('Hello World example page')
             ],
         ];
 
-        return self::$provides;
+        return static::$provides;
     }
 
     /**
-     * Main render method - returns view data for BlockService to process
-     * BlockService will handle the actual view rendering and title logic
+     * Main render method - the core service functionality
+     * This is all that's required for a basic service
      */
     public function render(array $options = []): array {
-        // Prepare content (never include title in content - BlockService handles titles)
         $content = $options['content'] ?? $this->content ?? _('This is a demonstration of the AGNSTK service system.');
         $attributes = array_merge($this->attributes, $options['attributes'] ?? []);
         
-        // Return view arguments for BlockService to process
         return [
-            'title' => $this->title, // BlockService will decide whether to show this based on show_title
+            'title' => $this->title,
             'content' => $content,
             'platform' => $this->getCurrentPlatform(),
             'timestamp' => now()->format('Y-m-d H:i:s'),
             'attributes' => $attributes,
         ];
-    }
-
-    /**
-     * Get the service title for pages
-     */
-    public function getTitle(): ?string {
-        return $this->title;
-    }
-    
-    /**
-     * Set the service title
-     */
-    public function setTitle(?string $title): self {
-        $this->title = $title;
-        return $this;
-    }
-    
-    /**
-     * Set content
-     */
-    public function setContent(?string $content): self {
-        $this->content = $content;
-        return $this;
-    }
-    
-    /**
-     * Set attributes (CSS classes, etc.)
-     */
-    public function setAttributes(array $attributes): self {
-        $this->attributes = $attributes;
-        return $this;
-    }
-    
-    /**
-     * Get raw data for API endpoints
-     */
-    public function toArray(): array {
-        return [
-            'title' => $this->title,
-            'content' => $this->content ?? _('This is a demonstration of the AGNSTK service system.'),
-            'features' => array_keys(self::$provides),
-        ];
-    }
-
-    /**
-     * Page configuration for routing from object properties
-     */
-    public function getPageConfig(): array {
-        return self::$provides['page'] ?? [];
-    }
-
-    /**
-     * Menu configuration from object properties
-     */
-    public function getMenuConfig(): array {
-        return self::$provides['menu'] ?? [];
-    }
-
-    /**
-     * API endpoint data  from object properties
-     */
-    public function getApiData(): array {
-        return $this->toArray();
-    }
-
-    /**
-     * WRONG!
-     * This is a generic feature, it has to be in helpers or boostrap
-     * or anywhere else than in a specific service.
-     */
-    private function getCurrentPlatform(): string {
-        // Ultimately, platform will be set by the adapter, this is temporary
-        if (defined('WP_VERSION')) return 'WordPress';
-        if (defined('DRUPAL_VERSION')) return 'Drupal';  
-        if (class_exists('October\Rain\Foundation\Application')) return 'October CMS';
-        return config('app.platform', 'Standalone'); // Default to Standalone
     }
 }

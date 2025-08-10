@@ -131,39 +131,75 @@ The app will be available at `http://localhost:8000`.
 git subtree pull --prefix=core https://github.com/magicoli/agnstk-core.git master --squash
 ```
 
-### Example: Hello World
+### Example: Simple Service
+
+Creating a basic AGNSTK service is straightforward - just extend BaseService and implement the essentials:
+
 ```php
-// src/Services/Hello.php
+// src/Services/Example.php
 namespace YourApp\Services;
 
-class Hello {
-    use AGNSTK\Services\Service;
+use App\Services\BaseService;
 
-    public static function view() {
-        return "Hello from AGNSTK!";
+class Example extends BaseService {
+    /**
+     * Configure your service
+     */
+    public static function init(): void {
+        if (static::$initialized) return;
+        
+        static::$label = _('Example');
+        static::$uri = '/example';
+        static::$defaultTitle = _('Example Page');
+        static::$defaultContent = _('Welcome to AGNSTK!');
+        
+        parent::init();
+    }
+
+    /**
+     * Define what your service provides
+     */
+    public static function provides(): array {
+        if (!empty(static::$provides)) return static::$provides;
+        
+        static::init();
+        static::$provides = [
+            'shortcode' => 'example',      // Enables {{example}} shortcodes
+            'page' => [                    // Creates /example page
+                'title' => static::$defaultTitle,
+                'uri' => static::$uri,
+            ],
+            'menu' => [                    // Adds menu item
+                'label' => static::$label,
+                'uri' => static::$uri,
+                'enabled' => true,
+            ],
+        ];
+        
+        return static::$provides;
+    }
+
+    /**
+     * Your core functionality
+     */
+    public function render(array $options = []): array {
+        $content = $options['content'] ?? $this->content ?? static::$defaultContent;
+        
+        return [
+            'title' => $this->title,
+            'content' => $content,
+        ];
     }
 }
-
-// adapters/wordpress/wordpress-plugin.php
-add_shortcode('yourapp_hello', function() {
-    return \YourApp\Services\Hello::view();
-});
-
-add_page('yourapp_hello', [
-    'title' => 'Hello',
-    'uri' => '/hello',
-    'callback' => '\YourApp\Services\Hello::view',
-    'menu' => [
-        'menu_id' => 'main',
-        'label' => 'Hello',
-        'order' => 10,
-        'enabled' => true,
-    ],
-    'enabled' => true,
-]);
 ```
 
-Now use [agnstk_hello] in WordPress!
+That's it! Your service now automatically provides:
+- **{{example}}** shortcodes in content
+- **/example** page route  
+- **Example** menu item
+- **Block embedding** capability
+
+Now use **{{example}}** in any CMS content!
 
 ## ExampleApp - AGNSTK Proof of Concept
 
