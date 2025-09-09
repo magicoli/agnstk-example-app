@@ -3,6 +3,8 @@
  * Core application defaults.
  */
 
+$core_version = '1.0.1';
+
 return [
 
     /*
@@ -16,8 +18,20 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'AGNSTK – Agnostic Glue for Non-Specific ToolKits'),
+    'name' => env('APP_NAME', config('bundle.name', 'AGNSTK')),
+    'version' => env('APP_VERSION', config('bundle.version', $core_version)),
+    'core_version' => $core_version,
+    'slogan' => env('APP_SLOGAN', 'Agnostic Glue for Non-Specific ToolKits'),
     'logo' => env('APP_LOGO', '/images/logo.png'),
+    'favicon' => env('APP_LOGO', '/images/favicon.ico'),
+    'icons' => [
+        'apple_touch_icon' => '/images/apple-touch-icon.png',
+        'android_chrome_192' => '/images/android-chrome-192x192.png',
+        'android_chrome_512' => '/images/android-chrome-512x512.png',
+        'safari_pinned_tab' => '/images/safari-pinned-tab.svg',
+        'web_manifest' => '/manifest.json'
+    ],
+    'theme' => 'default',
 
     /*
     |--------------------------------------------------------------------------
@@ -101,7 +115,7 @@ return [
 
     'cipher' => 'AES-256-CBC',
 
-    'key' => env('APP_KEY'),
+    'key' => env('APP_KEY', 'base64:' . base64_encode(str_repeat('a', 32))),
 
     'previous_keys' => [
         ...array_filter(

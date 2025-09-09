@@ -63,3 +63,47 @@ if (!function_exists('build_asset')) {
         return public_url("build/assets/{$filename}");
     }
 }
+
+if (!function_exists('do_shortcode')) {
+    /**
+     * Process shortcodes using service name and parameters
+     * Usage: {{ do_shortcode('hello', ['title' => 'Custom Title']) }}
+     */
+    function do_shortcode($shortcodeName, $parameters = []) {
+        try {
+            $shortcodeService = app(\App\Services\ShortcodeService::class);
+            return $shortcodeService->renderShortcodeDirective($shortcodeName, $parameters);
+        } catch (\Exception $e) {
+            return config('app.debug') ? "[shortcode error: {$e->getMessage()}]" : '';
+        }
+    }
+}
+
+if (!function_exists('resolve_file_path')) {
+    /**
+     * Resolve file path relative to application root
+     * This is a global utility function that can be used by any class
+     */
+    function resolve_file_path(string $path): string {
+        // If path is already absolute, return as-is
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+        
+        // First try relative to project root (where HELLO.md and other files are located)
+        $projectRoot = dirname(base_path());
+        $fullPath = $projectRoot . '/' . $path;
+        if (file_exists($fullPath)) {
+            return $fullPath;
+        }
+        
+        // Fallback to application root
+        $appPath = base_path($path);
+        if (file_exists($appPath)) {
+            return $appPath;
+        }
+        
+        // Return the project root path for logging (even if file doesn't exist)
+        return $fullPath;
+    }
+}

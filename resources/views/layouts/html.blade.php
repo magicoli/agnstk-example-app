@@ -39,11 +39,11 @@
                             $menuItems = \App\Services\PageService::getMenuItems();
                         @endphp
                         @foreach($menuItems as $item)
-                            @if(!($item['auth_required'] ?? false) || auth()->check())
+                            {{-- @if(!($item['auth_required'] ?? false) || auth()->check()) --}}
                                 <li class="nav-item">
                                     <a class="nav-link" href="{{ $item['url'] }}">{{ $item['label'] }}</a>
                                 </li>
-                            @endif
+                            {{-- @endif --}}
                         @endforeach
                     </ul>
 
@@ -95,7 +95,7 @@
 
         <footer class="bg-white text-center text-lg-start">
             <div class="text-center p-3">
-                © {{ date('Y') }} {{ config('app.name', 'AGNSTK (debug, fallback from app.blade.php)') }}. All rights reserved.
+                © {{ date('Y') }} {{ config('app.name', 'AGNSTK (debug, fallback from app.blade.php)') }} {{ config('app.version') }}. All rights reserved.
             </div>
         </footer>
     </div>
