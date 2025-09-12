@@ -33,9 +33,9 @@
 Always use the global helper functions that work in ALL environments:
 
 ### PHP/Blade Templates:
-- **`base_url($path)`** - For application URLs: `base_url('about')` → `https://agnstk.org/agnstk/about`
-- **`public_url($path)`** - For public assets: `public_url('js/prism.js')` → `https://agnstk.org/agnstk/public/js/prism.js`
-- **`build_asset($filename)`** - For built assets: `build_asset('main-styles.css')` → `https://agnstk.org/agnstk/public/build/assets/main-styles.css`
+- **`base_url($path)`** - For application URLs: `base_url('about')` → `https://agnstk-example-app.org/agnstk-example-app/about`
+- **`public_url($path)`** - For public assets: `public_url('js/prism.js')` → `https://agnstk-example-app.org/agnstk-example-app/public/js/prism.js`
+- **`build_asset($filename)`** - For built assets: `build_asset('main-styles.css')` → `https://agnstk-example-app.org/agnstk-example-app/public/build/assets/main-styles.css`
 - **`asset($path)`** - Laravel's helper for public assets
 
 ### Examples in Blade:

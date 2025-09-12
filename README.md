@@ -4,7 +4,7 @@
 
 [![License: AGPL-v3](https://img.shields.io/badge/License-AGPLv3-yellow.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-777BB4?logo=php)](https://www.php.net/)
-[![CMS Agnostic](https://img.shields.io/badge/CMS-Agnostic-ff69b4)](https://agnstk.org)
+[![CMS Agnostic](https://img.shields.io/badge/CMS-Agnostic-ff69b4)](https://agnstk-example-app.org)
 
 ---
 
@@ -38,7 +38,7 @@ Because "ToolKit" was too boring. AGNSTK transforms your code to fit anywhere—
 AGNSTK is built **on Laravel**, providing a robust core for your logic. Multiple deployment targets then make this core available across different platforms and interfaces.
 
 ```plaintext
-agnstk/
+agnstk-example-app/
 ├── index.php              # Standalone web entry
 ├── console                # Command-line tool entry
 ├── exampleapp.php         # WordPress plugin entry
@@ -105,7 +105,7 @@ Developers can enable any combination of these deployment targets for their appl
 Clone this repository (which includes the core as a git subtree):
 
 ```bash
-git clone https://github.com/magicoli/agnstk.git my-app
+git clone https://github.com/magicoli/agnstk-example-app.git my-app
 cd my-app
 composer install
 ```
@@ -128,7 +128,7 @@ The app will be available at `http://localhost:8000`.
 
 **To update the core framework:**
 ```bash
-git subtree pull --prefix=core https://github.com/magicoli/agnstk-core.git master --squash
+git subtree pull --prefix=core https://github.com/magicoli/agnstk.git master --squash
 ```
 
 ### Example: Simple Service
@@ -232,8 +232,8 @@ AGNSTK is currently implemented as a **Laravel 12** application with multiple de
 
 ## Contributing
 
-- Found a bug? [github.com/magicoli/agnstk/issues](https://github.com/magicoli/agnstk/issues)
-- Want help or discuss a related matter? [github.com/magicoli/agnstk/discussions](https://github.com/magicoli/agnstk/discussions)
+- Found a bug? [github.com/magicoli/agnstk-example-app/issues](https://github.com/magicoli/agnstk-example-app/issues)
+- Want help or discuss a related matter? [github.com/magicoli/agnstk-example-app/discussions](https://github.com/magicoli/agnstk-example-app/discussions)
 - Want to add a CMS? Open a an issue on GitHub.
 
 **Code of Conduct**: Be nice. We’re all just trying to glue things together.

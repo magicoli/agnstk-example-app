@@ -2,7 +2,7 @@
 
 [![License: AGPL-v3](https://img.shields.io/badge/License-AGPLv3-yellow.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![PHP Version](https://img.shields.io/badge/PHP-8.0%2B-777BB4?logo=php)](https://www.php.net/)
-[![CMS Agnostic](https://img.shields.io/badge/CMS-Agnostic-ff69b4)](https://agnstk.org)
+[![CMS Agnostic](https://img.shields.io/badge/CMS-Agnostic-ff69b4)](https://agnstk-example-app.org)
 
 This is the **AGNSTK Core Framework** - the foundational library that powers AGNSTK applications.
 
@@ -13,8 +13,8 @@ This is the **AGNSTK Core Framework** - the foundational library that powers AGN
 **For new projects:**
 Use the main AGNSTK application template instead:
 ```bash
-git clone https://github.com/magicoli/agnstk.git
-cd agnstk
+git clone https://github.com/magicoli/agnstk-example-app.git
+cd agnstk-example-app
 composer install
 composer run dev
 ```
@@ -24,14 +24,14 @@ This core is automatically included as a git subtree in AGNSTK applications.
 
 ## What is this?
 
-This directory contains the core AGNSTK framework that should **NOT be modified directly**. It's managed as a git subtree from the [magicoli/agnstk-core](https://github.com/magicoli/agnstk-core) repository.
+This directory contains the core AGNSTK framework that should **NOT be modified directly**. It's managed as a git subtree from the [magicoli/agnstk](https://github.com/magicoli/agnstk) repository.
 
 ## For Application Developers
 
 - **DON'T EDIT** files in this `core/` directory
 - **PUT YOUR CODE** in the application root directories (`src/`, `config/`, etc.)  
 - **CONFIGURE** your application by editing `core/config/bundle.php`
-- **UPDATE THE CORE** using `git subtree pull --prefix=core https://github.com/magicoli/agnstk-core.git master --squash`
+- **UPDATE THE CORE** using `git subtree pull --prefix=core https://github.com/magicoli/agnstk.git master --squash`
 
 ### Bundle Configuration Setup
 
@@ -55,13 +55,13 @@ After cloning your AGNSTK application, you need to enable bundle configuration t
 
 If you want to contribute to the AGNSTK framework itself:
 
-1. Work on the core repository: https://github.com/magicoli/agnstk-core
+1. Work on the core repository: https://github.com/magicoli/agnstk
 2. Changes will be pulled into applications via git subtree updates
 
 ## Architecture
 
 ```
-your-agnstk-app/
+your-app/
 ├── src/                    ← YOUR APPLICATION CODE
 ├── core/                   ← AGNSTK FRAMEWORK (this directory)
 │   ├── config/
@@ -82,11 +82,11 @@ The core provides:
 
 Update the core framework:
 ```bash
-git subtree pull --prefix=core https://github.com/magicoli/agnstk-core.git master --squash
+git subtree pull --prefix=core https://github.com/magicoli/agnstk.git master --squash
 ```
 
-This uses git subtree to pull the latest changes from agnstk-core while preserving your application code.
+This uses git subtree to pull the latest changes from agnstk while preserving your application code.
 
 ---
 
-**Need help?** Check the main README.md in the application root or visit https://agnstk.org
+**Need help?** Check the main README.md in the application root or visit https://agnstk-example-app.org

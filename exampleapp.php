@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:     AGNSTK Example App
- * Plugin URI:      https://agnstk.org
+ * Plugin URI:      https://agnstk-example-app.org
  * Description:     A simple AGNSTK example app implemented as a WordPress plugin.
  * Author:          Olivier van Helden <olivier@van-helden.net>
  * Author URI:      https://magiiic.com

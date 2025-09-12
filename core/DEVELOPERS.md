@@ -3,7 +3,7 @@
 ## Initial setup
 1. Clone the kit in your new app folder
 ```bash
-git clone https://github.com/magicoli/agnstk.git my-agnostic-app
+git clone https://github.com/magicoli/agnstk-example-app.git my-agnostic-app
 cd my-agnostic-app
 ```
 

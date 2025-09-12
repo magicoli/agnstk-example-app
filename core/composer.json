@@ -1,10 +1,10 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "magicoli/agnstk-core",
+    "name": "magicoli/agnstk",
     "type": "library",
     "description": "AGNSTK Framework Core - The cross-platform PHP application framework",
     "keywords": [
-        "agnstk",
+        "agnstk-example-app",
         "framework",
         "cms",
         "cross-platform",
