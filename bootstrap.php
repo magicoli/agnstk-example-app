@@ -6,9 +6,11 @@
  * It allows the app to be accessed directly from the project root.
  */
 
-// Define main app root
+// Define framework root
+$agnstkPath = __DIR__ . '/lib/agnstk';
+
 // Load framework autoloader first
-require_once __DIR__ . '/lib/agnstk/vendor/autoload.php';
+require_once $agnstkPath . '/vendor/autoload.php';
 
 // Load app autoloader if it exists
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
