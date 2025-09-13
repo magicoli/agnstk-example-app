@@ -9,7 +9,8 @@ if (!function_exists('base_url')) {
      * Generate a URL with the detected base URL
      */
     function base_url($path = '') {
-        return \Illuminate\Support\Facades\URL::baseUrl($path);
+        // Use Laravel's url() helper to generate base URLs
+        return url($path);
     }
 }
 
@@ -18,7 +19,8 @@ if (!function_exists('public_url')) {
      * Generate a URL for public assets with the detected public URL
      */
     function public_url($path = '') {
-        return \Illuminate\Support\Facades\URL::publicUrl($path);
+        // Use Laravel's asset() helper which generates URLs for public assets
+        return asset($path);
     }
 }
 
@@ -71,7 +73,7 @@ if (!function_exists('do_shortcode')) {
      */
     function do_shortcode($shortcodeName, $parameters = []) {
         try {
-            $shortcodeService = app(\App\Services\ShortcodeService::class);
+            $shortcodeService = app(\Agnstk\Services\ShortcodeService::class);
             return $shortcodeService->renderShortcodeDirective($shortcodeName, $parameters);
         } catch (\Exception $e) {
             return config('app.debug') ? "[shortcode error: {$e->getMessage()}]" : '';
@@ -90,20 +92,22 @@ if (!function_exists('resolve_file_path')) {
             return $path;
         }
         
-        // First try relative to project root (where HELLO.md and other files are located)
-        $projectRoot = dirname(base_path());
-        $fullPath = $projectRoot . '/' . $path;
-        if (file_exists($fullPath)) {
-            return $fullPath;
+        // Use the app_root from bundle configuration
+        $appRoot = config('bundle.app_root');
+        if ($appRoot) {
+            $fullPath = $appRoot . '/' . $path;
+            if (file_exists($fullPath)) {
+                return $fullPath;
+            }
         }
         
-        // Fallback to application root
-        $appPath = base_path($path);
-        if (file_exists($appPath)) {
-            return $appPath;
+        // Fallback to framework root for framework files
+        $frameworkPath = base_path($path);
+        if (file_exists($frameworkPath)) {
+            return $frameworkPath;
         }
         
-        // Return the project root path for logging (even if file doesn't exist)
-        return $fullPath;
+        // Return the app root path for logging (even if file doesn't exist)
+        return $appRoot ? $appRoot . '/' . $path : $frameworkPath;
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Agnstk\Services;
 
 class ShortcodeService {
     
@@ -181,7 +181,7 @@ class ShortcodeService {
     
     /**
      * Render service directly from Blade directive  
-     * Usage: @service('YourApp\\Services\\HelloService', ['title' => 'Custom Title'])
+     * Usage: @service('ExampleApp\\Services\\HelloService', ['title' => 'Custom Title'])
      */
     public function renderServiceDirective(string $serviceClass, array $attributes = []): string {
         try {

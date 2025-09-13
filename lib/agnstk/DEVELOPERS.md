@@ -1,4 +1,4 @@
-# App development kit instruction
+# Agnstk development kit instruction
 
 ## Initial setup
 1. Clone the kit in your new app folder

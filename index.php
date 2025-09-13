@@ -1,70 +1,27 @@
 <?php
-
 /**
- * AGNSTK - Agnostic Glue for Non-Specific ToolKits
+ * ExampleApp - Example Application using AGNSTK framework
  * 
  * This is the standalone entry point for the AGNSTK Laravel application.
  * It allows the app to be accessed directly from the project root.
  */
 
-use Illuminate\Foundation\Application;
-use Illuminate\Http\Request;
+// Define main app root
+// Load framework autoloader first
+require_once __DIR__ . '/lib/agnstk/vendor/autoload.php';
 
-define('LARAVEL_START', microtime(true));
-$agnstk_uri = 'lib/agnstk';
-$agnstk_path = __DIR__ . "/$agnstk_uri";
-
-// Determine if the application is in maintenance mode...
-if (file_exists($maintenance = __DIR__.'/storage/framework/maintenance.php')) {
-    require $maintenance;
+// Load app autoloader if it exists
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
 }
 
-// Register the Composer autoloader...
-require $agnstk_path . '/vendor/autoload.php';
-
-// Also load application autoloader if it exists
-if (file_exists(__DIR__.'/vendor/autoload.php')) {
-    require __DIR__.'/vendor/autoload.php';
+// Load bundle configuration from config file
+$bundleConfigPath = __DIR__ . '/config/bundle.php';
+if (!file_exists($bundleConfigPath)) {
+    throw new RuntimeException('Bundle configuration file not found: ' . $bundleConfigPath);
 }
+$bundleConfig = require $bundleConfigPath;
 
-$request = Request::capture();
+$app = new Agnstk\App($bundleConfig);
 
-// Detect base URL from the current request for proper asset handling
-
-// Auto-detect the base URL and path
-$scheme = $request->getScheme();
-$host = $request->getHttpHost();
-$scriptName = $request->getScriptName();
-
-// Extract the base path (handles subdirectory installations like /agnstk/)
-$urlBasePath = dirname($scriptName);
-if ($urlBasePath === '/' || $urlBasePath === '\\') {
-    $urlBasePath = '';
-}
-
-// Build the complete base URL
-$baseUrl = $scheme . '://' . $host . $urlBasePath;
-$assetUrl = $baseUrl . '/' . $agnstk_uri . '/public';
-
-// Set environment variables for Laravel configuration
-putenv("APP_URL=" . $baseUrl);
-putenv("ASSET_URL=" . $assetUrl);
-
-// Bootstrap Laravel and handle the request...
-/** @var Application $app */
-$app = require_once $agnstk_path . '/bootstrap/app.php';
-
-// Configure Laravel after bootstrapping
-$app->booted(function ($app) use ($baseUrl, $assetUrl) {
-    // Set the application URL
-    $app['config']->set('app.url', $baseUrl);
-    // Set the asset URL for proper asset() helper behavior
-    $app['config']->set('app.asset_url', $assetUrl);
-});
-
-// Determine if the application is in maintenance mode...
-if (file_exists($maintenance = $agnstk_path . '/storage/framework/maintenance.php')) {
-    require $maintenance;
-}
-
-$app->handleRequest($request);
+$app->handleRequest();

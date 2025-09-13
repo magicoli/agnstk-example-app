@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Services;
+namespace Agnstk\Services;
 
 use Illuminate\Contracts\Support\Renderable;
-use App\Traits\RenderableTrait;
+use Agnstk\Traits\RenderableTrait;
 
 /**
  * Base service class providing common functionality for all AGNSTK services

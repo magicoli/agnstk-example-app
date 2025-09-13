@@ -15,7 +15,7 @@
     },
     "autoload": {
         "psr-4": {
-            "YourApp\\": "src/"
+            "ExampleApp\\": "src/"
         }
     },
     "scripts": {

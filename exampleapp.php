@@ -9,7 +9,7 @@
  * Domain Path:     /languages
  * Version:         0.1.0
  *
- * @package         Agnstk\ExampleApp
+ * @package         ExampleApp
  */
 
 // Prevent direct access

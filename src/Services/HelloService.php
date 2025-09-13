@@ -1,8 +1,8 @@
 <?php
 
-namespace YourApp\Services;
+namespace ExampleApp\Services;
 
-use App\Services\BaseService;
+use Agnstk\Services\BaseService;
 
 /**
  * HelloService - Simple example service

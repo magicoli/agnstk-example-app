@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Agnstk\Http\Controllers;
 
-use App\Services\PageService;
+use Agnstk\Services\PageService;
 use Illuminate\Http\Request;
 
 class PageController extends Controller {

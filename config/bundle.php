@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'app_root' => dirname(__DIR__, 2),
+    'app_root' => dirname(__DIR__),
 
     /*
     |--------------------------------------------------------------------------
@@ -24,9 +24,10 @@ return [
     |
     */
 
-    'name' => env('BUNDLE_NAME', 'AGNSTK Application'),
+    'name' => env('APP_NAME', 'Example Application'),
+    'namespace' => 'ExampleApp',
     'version' => '1.0.0',
-    'description' => 'AGNSTK Application Bundle',
+    'description' => 'A simple AGNSTK example application',
 
     /*
     |--------------------------------------------------------------------------

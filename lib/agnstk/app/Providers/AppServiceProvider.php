@@ -15,7 +15,7 @@ class AppServiceProvider extends ServiceProvider {
         $this->configureAppRoot();
         
         // Register core services
-        $this->app->singleton(\App\Services\ShortcodeService::class);
+        $this->app->singleton(\Agnstk\Services\ShortcodeService::class);
         
         // Discover and register application services
         $this->discoverAndRegisterServices();
@@ -26,9 +26,10 @@ class AppServiceProvider extends ServiceProvider {
      */
     private function discoverAndRegisterServices(): void {
         $appRoot = config('app.app_root');
+        $appNamespace = config('app.namespace'); // Use the namespace from bundle config
         $servicesPath = $appRoot . '/src/Services';
         
-        if (!is_dir($servicesPath)) {
+        if (!is_dir($servicesPath) || !$appNamespace) {
             return;
         }
         
@@ -37,7 +38,7 @@ class AppServiceProvider extends ServiceProvider {
         
         foreach ($serviceFiles as $file) {
             $className = basename($file, '.php');
-            $fullClassName = "YourApp\\Services\\{$className}";
+            $fullClassName = "{$appNamespace}\\Services\\{$className}";
             
             // Check if class exists and register it
             if (class_exists($fullClassName)) {
@@ -73,9 +74,10 @@ class AppServiceProvider extends ServiceProvider {
      */
     private function registerServiceFeatures(): void {
         $appRoot = config('app.app_root');
+        $appNamespace = config('app.namespace'); // Use the namespace from bundle config
         $servicesPath = $appRoot . '/src/Services';
         
-        if (!is_dir($servicesPath)) {
+        if (!is_dir($servicesPath) || !$appNamespace) {
             return;
         }
         
@@ -84,7 +86,7 @@ class AppServiceProvider extends ServiceProvider {
         
         foreach ($serviceFiles as $file) {
             $className = basename($file, '.php');
-            $fullClassName = "YourApp\\Services\\{$className}";
+            $fullClassName = "{$appNamespace}\\Services\\{$className}";
             
             if (class_exists($fullClassName)) {
                 $this->registerServiceProvides($fullClassName);
@@ -168,7 +170,7 @@ class AppServiceProvider extends ServiceProvider {
         config(['app.registered_service_pages' => $servicePages]);
         
         // Register Laravel route using PageController
-        \Illuminate\Support\Facades\Route::get($uri, [\App\Http\Controllers\PageController::class, 'show'])
+        \Illuminate\Support\Facades\Route::get($uri, [\Agnstk\Http\Controllers\PageController::class, 'show'])
             ->defaults('slug', $slug);
     }
     

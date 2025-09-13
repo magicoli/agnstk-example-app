@@ -1,4 +1,4 @@
-# AGNSTK - Agnostic Glue for Non-Specific ToolKits
+# Example App - Agnostic Glue for Non-Specific ToolKits
 
 **One Core. Any CMS.**
 
@@ -137,7 +137,7 @@ Creating a basic AGNSTK service is straightforward - just extend BaseService and
 
 ```php
 // src/Services/Example.php
-namespace YourApp\Services;
+namespace ExampleApp\Services;
 
 use App\Services\BaseService;
 

@@ -27,7 +27,7 @@ return [
     ],
     'developers' => [
         // 'title' => 'Developers',
-        'source' => 'core/DEVELOPERS.md', // Show README content on home page
+        'source' => 'DEVELOPERS.md', // Show README content on home page
         'menu' => true,
     ],
     

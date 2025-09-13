@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\PageController;
-use App\Services\PageService;
+use Agnstk\Http\Controllers\PageController;
+use Agnstk\Services\PageService;
 
 // Home page
 Route::get('/', [PageController::class, 'home'])->name('home');
