@@ -86,28 +86,20 @@ if (!function_exists('resolve_file_path')) {
      * Resolve file path relative to application root
      * This is a global utility function that can be used by any class
      */
-    function resolve_file_path(string $path): string {
+    function resolve_file_path(string $path): string|false {
         // If path is already absolute, return as-is
         if (str_starts_with($path, '/')) {
-            return $path;
+            return file_exists($path) ? $path : false;
         }
         
         // Use the app_root from bundle configuration
         $appRoot = config('bundle.app_root');
-        if ($appRoot) {
-            $fullPath = $appRoot . '/' . $path;
-            if (file_exists($fullPath)) {
-                return $fullPath;
-            }
-        }
         
-        // Fallback to framework root for framework files
-        $frameworkPath = base_path($path);
-        if (file_exists($frameworkPath)) {
-            return $frameworkPath;
+        if (!$appRoot) {
+            throw new \RuntimeException('Bundle configuration not loaded - app_root is required');
         }
-        
-        // Return the app root path for logging (even if file doesn't exist)
-        return $appRoot ? $appRoot . '/' . $path : $frameworkPath;
+
+        $fullPath = $appRoot . '/' . $path;
+        return file_exists($fullPath) ? $fullPath : false;
     }
 }

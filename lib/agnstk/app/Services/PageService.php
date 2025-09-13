@@ -290,7 +290,7 @@ class PageService {
         if (self::isFilePath($source)) {
             $filePath = resolve_file_path($source);
             
-            if (!$filePath || !File::exists($filePath)) {
+            if (!$filePath) {
                 return '<div class="alert alert-warning">File not found: ' . $source . '</div>';
             }
             
@@ -352,7 +352,7 @@ class PageService {
     private static function renderMarkdownFile(string $filename): string {
         $filePath = resolve_file_path($filename);
         
-        if (!File::exists($filePath)) {
+        if (!$filePath) {
             return '<div class="alert alert-warning">' . $filename . ' not found.</div>';
         }
 

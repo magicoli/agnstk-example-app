@@ -98,9 +98,32 @@ class App
             
             // Set bundle configuration for the framework to use
             foreach ($this->bundleConfig as $key => $value) {
-                $app['config']->set("app.{$key}", $value);
+                $app['config']->set("bundle.{$key}", $value);
             }
+            
+            // Load and override configs from app root
+            $this->loadAppConfigs($app);
         });
+    }
+
+    /**
+     * Load and override configs from app root directory
+     */
+    protected function loadAppConfigs($app): void
+    {
+        $appConfigPath = $this->bundleConfig['app_root'] . '/config';
+        
+        if (is_dir($appConfigPath)) {
+            $configFiles = glob($appConfigPath . '/*.php');
+            
+            foreach ($configFiles as $configFile) {
+                $configName = basename($configFile, '.php');
+                $configData = require $configFile;
+                
+                // Completely override the library config with app config
+                $app['config']->set($configName, $configData);
+            }
+        }
     }
 
     /**
