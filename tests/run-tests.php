@@ -11,10 +11,11 @@ if ( session_status() === PHP_SESSION_NONE ) {
 }
 
 echo str_repeat( '=', 50 ) . PHP_EOL;
-echo "OpenSimulator Helpers Test Suite" . PHP_EOL;
+echo "AGNSTK Test Suite" . PHP_EOL;
 echo str_repeat( '=', 50 ) . PHP_EOL;
-
 require_once __DIR__ . '/bootstrap.php';
+echo "Home URL: " . getenv('HOME_URL') . PHP_EOL;
+
 if(!class_exists('SimpleTest')) {
     echo "ERROR: Failed to load bootstrap.php" . PHP_EOL;
     exit(1);

@@ -567,5 +567,144 @@ if (function_exists('pcntl_signal')) {
     });
 }
 
+/**
+ * Drop-in replacement for get_headers(), use curl if available to allow more control
+ * (including bypass allow_url_fopen off)
+ *
+ * @param string $url The URL to get headers from
+ * @param bool $associative Whether to return an associative array (default: false)
+ * @param resource|null $context Stream context (ignored when using cURL)
+ * @return array|false Array of headers or false on failure
+ */
+function testing_get_headers( $url, $associative = false, $context = null ) {
+	// Check if cURL is available, otherwise fallback to get_headers
+	if ( ! php_has('curl') ) {
+		return get_headers( $url, $associative, $context );
+	}
+
+	$ch = curl_init();
+	curl_setopt( $ch, CURLOPT_URL, $url );
+	curl_setopt( $ch, CURLOPT_NOBODY, true );
+	curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+	curl_setopt( $ch, CURLOPT_HEADER, true );
+	curl_setopt( $ch, CURLOPT_TIMEOUT, 10 );
+	curl_setopt( $ch, CURLOPT_USERAGENT, 'OpenSim-Helpers/1.0' );
+	curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
+	
+	$response = curl_exec( $ch );
+	curl_close( $ch );
+
+	if ( $response === false ) {
+		return false;
+	}
+
+	// Parse headers into same format as get_headers()
+	$headers = array();
+	$header_lines = explode( "\r\n", $response );
+	foreach ( $header_lines as $line ) {
+		$line = trim( $line );
+		if ( empty( $line ) ) {
+			continue;
+		}
+		
+		if ( strpos( $line, ':' ) !== false ) {
+			// Header line with name: value
+			list( $key, $value ) = explode( ':', $line, 2 );
+			$key = trim( $key );
+			$value = trim( $value );
+			
+			if ( $associative ) {
+				// Associative format like get_headers($url, true)
+				if ( isset( $headers[ $key ] ) ) {
+					// Multiple headers with same name - convert to array
+					if ( ! is_array( $headers[ $key ] ) ) {
+						$headers[ $key ] = array( $headers[ $key ] );
+					}
+					$headers[ $key ][] = $value;
+				} else {
+					$headers[ $key ] = $value;
+				}
+			} else {
+				// Numeric format like get_headers($url, false)
+				$headers[] = $key . ': ' . $value;
+			}
+		} else {
+			// Status line (HTTP/1.1 200 OK)
+			if ( ! $associative ) {
+				$headers[] = $line;
+			} else {
+				// In associative mode, status line is at index 0
+				$headers[0] = $line;
+			}
+		}
+	}
+	return $headers;
+}
+
+/**
+ * Drop-in replacement for file_get_contents(), use curl if available to allow more control
+ * (including bypass allow_url_fopen off)
+ *
+ * @param string $filename Name of the file or URL to read
+ * @param bool $use_include_path Whether to search the include path (ignored for URLs)
+ * @param resource|null $context Stream context (ignored when using cURL for URLs)
+ * @param int $offset The offset where reading starts (ignored for URLs)
+ * @param int|null $length Maximum length to read (ignored for URLs)
+ * @return string|false The read data or false on failure
+ */
+function testing_file_get_contents( $filename, $use_include_path = false, $context = null, $offset = 0, $length = null ) {
+	// For local files or if cURL not available, use regular file_get_contents
+	if ( ! php_has('curl') || ! filter_var( $filename, FILTER_VALIDATE_URL ) ) {
+		return file_get_contents( $filename, $use_include_path, $context, $offset, $length );
+	}
+
+	// For URLs, use cURL
+	$ch = curl_init();
+	curl_setopt( $ch, CURLOPT_URL, $filename );
+	curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+	curl_setopt( $ch, CURLOPT_TIMEOUT, 10 );
+	curl_setopt( $ch, CURLOPT_USERAGENT, 'OpenSim-Helpers/1.0' );
+	curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
+	curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, true );
+	
+	$content = curl_exec( $ch );
+	curl_close( $ch );
+
+	return $content;
+}
+
+function php_has( $extension ) {
+	switch($extension) {
+		case 'php':
+			return true; // PHP is always loaded
+		case 'php7':
+			return version_compare( PHP_VERSION, '7.0', '>=' );	
+		case 'php7.4':
+			return version_compare( PHP_VERSION, '7.4', '>=' );
+		case 'php8.0':
+			return version_compare( PHP_VERSION, '8.0', '>=' );
+		case 'curl':
+			return function_exists( 'curl_init' );
+		case 'intl':
+			return function_exists( 'transliterator_transliterate' );
+		case 'xmlrpc':
+			return function_exists( 'xmlrpc_encode' );
+			// return function_exists( 'xmlrpc_encode' ) || class_exists( '\\PhpXmlRpc\\Value' );
+		case 'imagick':
+			return class_exists( 'Imagick' ) || class_exists( 'ImagickDraw' ) || class_exists( 'ImagickPixel' );
+		case 'json':
+			return function_exists( 'json_encode' );
+		case 'mbstring':
+			return function_exists( 'mb_convert_encoding' );
+		case 'simplexml':
+			return function_exists( 'simplexml_load_string' );
+		default:
+			// For any other extension, we can use the extension_loaded function
+			return extension_loaded( $extension );
+	}
+	return false;
+}
+
+
 // Global test instance
 $test = new SimpleTest();
