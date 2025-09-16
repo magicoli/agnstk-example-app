@@ -25,3 +25,5 @@ Thumbs.db
 
 # AGNSTK: Remove this line to track your bundle configuration
 core/config/bundle.php
+tmp/
+tmp.*
