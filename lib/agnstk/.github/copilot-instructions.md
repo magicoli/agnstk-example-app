@@ -13,7 +13,7 @@
 
 ## Laravel Standards (Strictly Follow)
 - **File Naming**: PascalCase for classes (Laravel standard): `MembershipService.php`, `BlockController.php`
-- **PSR-4 Namespacing**: `App\Services\BlockService` → `app/Services/BlockService.php`
+- **PSR-4 Namespacing**: `Agnstk\Services\BlockService` → `app/Services/BlockService.php`
 - **Artisan Generation**: Always use `php artisan make:controller`, `php artisan make:model`, etc.
 - **Blade Templates**: Use Laravel's templating system, extend layouts properly
 - **Routes**: Define in `routes/web.php` using Laravel routing
@@ -56,7 +56,7 @@ Always use the global helper functions that work in ALL environments:
 - **Testing**: Use Pest for readable, maintainable tests
 - **Universal URL Handling**: Use helper functions that work in development AND production
 
-## Current Focus: Standalone Laravel App
+## Current Focus: Standalone Laravel Agnstk
 - Authentication & registration working via Laravel Breeze/UI
 - Block system implementation using Laravel patterns
 - Page management through Laravel controllers/models

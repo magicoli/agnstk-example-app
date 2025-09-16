@@ -27,7 +27,7 @@ return [
     ],
     'developers' => [
         // 'title' => 'Developers',
-        'source' => 'core/DEVELOPERS.md', // Show README content on home page
+        'source' => 'DEVELOPERS.md', // Show README content on home page
         'menu' => true,
     ],
     
@@ -60,7 +60,7 @@ return [
                     </div>
                     <hr>
                     <div class="text-bold">
-                        {{hello title="Hello (with double bracked tag)" class=""}}
+                        {{hello title="Hello (with double bracket tag)" class=""}}
                     </div>
                 </div>
             </div>

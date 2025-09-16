@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Services;
+namespace Agnstk\Services;
 
 use Illuminate\Support\Str;
 
 class BlockService {
-    use \App\Traits\RenderableTrait;
+    use \Agnstk\Traits\RenderableTrait;
     
     protected string $content = '';
     protected array $options = [];
@@ -112,7 +112,7 @@ class BlockService {
             // Direct HTML/text content
             $this->slug = ($this->slug ?: $options['container-id'] ?? 'content') . '-block';
             $this->content = $options['content'];
-                        // Extract title from HTML content if not already set
+            // Extract title from HTML content if not already set
             $this->preprocessContent();
 
             return $this;
@@ -185,8 +185,8 @@ class BlockService {
         try {
             // Try to resolve with full namespace first
             if (!class_exists($serviceClass)) {
-                // Try with YourApp namespace (our service namespace)
-                $namespacedClass = "YourApp\\Services\\{$serviceClass}";
+                // Try with ExampleApp namespace (our service namespace)
+                $namespacedClass = "ExampleApp\\Services\\{$serviceClass}";
                 if (class_exists($namespacedClass)) {
                     $serviceClass = $namespacedClass;
                 }
@@ -440,7 +440,7 @@ class BlockService {
         
         $sourceFormat = $sourceFormat ?: $this->detectSourceFormat($content);
 
-        $shortcodeService = app(\App\Services\ShortcodeService::class);
+        $shortcodeService = app(\Agnstk\Services\ShortcodeService::class);
         return $shortcodeService->processShortcodes($content, $sourceFormat);
     }
     

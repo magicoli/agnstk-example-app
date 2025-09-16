@@ -16,7 +16,7 @@ return [
         'shortcode' => 'example_block', // Shortcode to use in content
         'content' => '<p>Example block content goes here.</p>',
         'view' => 'example-block',
-        'callback' => 'App\\Blocks\\ExampleBlock',
+        'callback' => 'Agnstk\\Blocks\\ExampleBlock',
         'source' => 'example.md', // Optional source file
         'enabled' => true,
         'attributes' => [

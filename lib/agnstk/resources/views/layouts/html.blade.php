@@ -36,7 +36,7 @@
                     <!-- Left Side Of Navbar -->
                     <ul class="navbar-nav me-auto">
                         @php
-                            $menuItems = \App\Services\PageService::getMenuItems();
+                            $menuItems = \Agnstk\Services\PageService::getMenuItems();
                         @endphp
                         @foreach($menuItems as $item)
                             {{-- @if(!($item['auth_required'] ?? false) || auth()->check()) --}}

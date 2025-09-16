@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace Agnstk\Services;
 
 use Illuminate\Support\Facades\File;
 use League\CommonMark\Environment\Environment;
@@ -176,7 +176,7 @@ class PageService {
         $contentSource = $this->determineContentSource($pageConfig);
         
         if ($contentSource) {
-            $blockService = app(\App\Services\BlockService::class);
+            $blockService = app(\Agnstk\Services\BlockService::class);
             
             // Build comprehensive block options - let BlockService handle all logic
             $blockOptions = [
@@ -273,7 +273,7 @@ class PageService {
      * Render page content using BlockService
      */
     public function renderPageContent(string $content): string {
-        $block = app(\App\Services\BlockService::class);
+        $block = app(\Agnstk\Services\BlockService::class);
         return $block->postProcessContent($content, 'html');
     }
 
@@ -290,7 +290,7 @@ class PageService {
         if (self::isFilePath($source)) {
             $filePath = resolve_file_path($source);
             
-            if (!$filePath || !File::exists($filePath)) {
+            if (!$filePath) {
                 return '<div class="alert alert-warning">File not found: ' . $source . '</div>';
             }
             
@@ -352,7 +352,7 @@ class PageService {
     private static function renderMarkdownFile(string $filename): string {
         $filePath = resolve_file_path($filename);
         
-        if (!File::exists($filePath)) {
+        if (!$filePath) {
             return '<div class="alert alert-warning">' . $filename . ' not found.</div>';
         }
 
@@ -380,7 +380,7 @@ class PageService {
         $html = $converter->convert($markdown)->getContent();
         
         // Use BlockService for post-processing (includes shortcodes and other processing)
-        $block = app(\App\Services\BlockService::class);
+        $block = app(\Agnstk\Services\BlockService::class);
         $html = $block->postProcessContent($html, 'markdown');
         
         // Post-process to ensure proper Prism.js classes
@@ -411,8 +411,8 @@ class PageService {
             
             // Try multiple namespaces
             $possibleClasses = [
-                "App\\Services\\{$serviceClass}",        // Core services
-                "YourApp\\Services\\{$serviceClass}",    // Application services
+                "Agnstk\\Services\\{$serviceClass}",        // Core services
+                "ExampleApp\\Services\\{$serviceClass}",    // Application services
             ];
             
             foreach ($possibleClasses as $fullServiceClass) {

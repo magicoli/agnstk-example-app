@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Traits;
+namespace Agnstk\Traits;
 
 trait RenderableTrait {
     
@@ -9,7 +9,7 @@ trait RenderableTrait {
      * This should be called on all rendered content before final output
      */
     protected function postProcessRender(string $content, string $sourceFormat = 'html'): string {
-        $block = app(\App\Services\BlockService::class);
+        $block = app(\Agnstk\Services\BlockService::class);
         return $block->postProcessContent($content, $sourceFormat);
     }
     
