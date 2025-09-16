@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:magicoli/agnstk.git
+	branch = master
+	commit = f2c3eb1909a707943892bb4b7d22f0c110282718
+	parent = 805ae1c0b01936fa2d1c559cb3a7f333eb7ff316
+	method = merge
+	cmdver = 0.4.9
