@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Providers;
+namespace Agnstk\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
@@ -25,8 +25,8 @@ class AppServiceProvider extends ServiceProvider {
      * Discover services in src/Services/ and register them with Laravel
      */
     private function discoverAndRegisterServices(): void {
-        $appRoot = config('app.app_root');
-        $appNamespace = config('app.namespace'); // Use the namespace from bundle config
+        $appRoot = config('bundle.app_root');
+        $appNamespace = config('bundle.namespace');
         $servicesPath = $appRoot . '/src/Services';
         
         if (!is_dir($servicesPath) || !$appNamespace) {
@@ -48,11 +48,11 @@ class AppServiceProvider extends ServiceProvider {
     }
 
     /**
-     * Configure app_root from bundle config with proper fallback
+     * Configure bundle config by using the config already provided by App
      */
     private function configureAppRoot(): void {
-        $appRoot = config('bundle.app_root', config('app.app_root', dirname(base_path())));
-        config(['app.app_root' => env('APP_ROOT', $appRoot)]);
+        // Bundle config should already be set by App class
+        // No need to load from file - just use what's already configured
     }
 
     /**
@@ -62,8 +62,8 @@ class AppServiceProvider extends ServiceProvider {
         // Configure global URL handling for root-based serving
         $this->configureGlobalUrls();
         
-        // Register service features (shortcodes, pages, menus, etc.)
-        $this->registerServiceFeatures();
+        // Service features registration moved to App.php booted() callback
+        // to ensure bundle config is loaded first
         
         // Register Blade directives for shortcodes
         $this->registerBladeDirectives();
@@ -72,12 +72,17 @@ class AppServiceProvider extends ServiceProvider {
     /**
      * Register features declared by services in their $provides arrays
      */
-    private function registerServiceFeatures(): void {
-        $appRoot = config('app.app_root');
-        $appNamespace = config('app.namespace'); // Use the namespace from bundle config
+    public function registerServiceFeatures(): void {
+        $appRoot = config('bundle.app_root') ?: config('app.app_root');
+        if(empty($appRoot)) {
+            throw new \RuntimeException("App root is not set in bundle configuration. Cannot register service features.");
+            return;
+        }
+        $appNamespace = config('bundle.namespace');
         $servicesPath = $appRoot . '/src/Services';
         
         if (!is_dir($servicesPath) || !$appNamespace) {
+            throw new \RuntimeException("Services path $servicesPath not found or app namespace $appNamespace not set. Cannot register service features.");
             return;
         }
         
@@ -87,7 +92,7 @@ class AppServiceProvider extends ServiceProvider {
         foreach ($serviceFiles as $file) {
             $className = basename($file, '.php');
             $fullClassName = "{$appNamespace}\\Services\\{$className}";
-            
+
             if (class_exists($fullClassName)) {
                 $this->registerServiceProvides($fullClassName);
             }
@@ -98,15 +103,19 @@ class AppServiceProvider extends ServiceProvider {
      * Register features from a service's $provides array
      */
     private function registerServiceProvides(string $serviceClass): void {
-        // Get $provides array using provides() method if available, otherwise try reflection
+        // Get $provides array using provides() method
         try {
+            // This might be enough:
+            // if (!method_exists($serviceClass, 'provides')) {
+            //     return;
+            // }
+            // $provides = $serviceClass::provides();
+
             $provides = [];
             
             // First try to use provides() method
             if (method_exists($serviceClass, 'provides')) {
                 $provides = $serviceClass::provides();
-            } elseif (method_exists($serviceClass, 'getProvides')) {
-                $provides = $serviceClass::getProvides();
             } else {
                 // Fallback to reflection for static property
                 $reflection = new \ReflectionClass($serviceClass);
@@ -147,10 +156,9 @@ class AppServiceProvider extends ServiceProvider {
     private function registerShortcode(string $shortcode, string $serviceClass): void {
         // For now, we'll store shortcode registrations in config
         // Later this can be processed by CMS adapters
-        $shortcodes = config('app.registered_shortcodes', []);
+        $shortcodes = config('shortcodes', []);
         $shortcodes[$shortcode] = $serviceClass;
-        config(['app.registered_shortcodes' => $shortcodes]);
-        
+        config(['shortcodes' => $shortcodes]);
     }
     
     /**

@@ -112,7 +112,7 @@ class BlockService {
             // Direct HTML/text content
             $this->slug = ($this->slug ?: $options['container-id'] ?? 'content') . '-block';
             $this->content = $options['content'];
-                        // Extract title from HTML content if not already set
+            // Extract title from HTML content if not already set
             $this->preprocessContent();
 
             return $this;

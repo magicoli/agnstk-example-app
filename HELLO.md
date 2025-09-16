@@ -1,3 +1,5 @@
 # Hello (test markdown)
 
-* {{hello title="Hello (using double bracked tag)" class=""}}
+* This should appear as is without expansion: [hello title="Hello (using brackets)"]
+
+* This should be expanded: {{hello title="Hello (using double bracket tag)" class=""}}

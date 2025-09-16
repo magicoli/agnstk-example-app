@@ -67,7 +67,7 @@ return [
                     </div>
                     <hr>
                     <div class="text-bold">
-                        {{hello title="Hello (with double bracked tag)" class=""}}
+                        {{hello title="Hello (with double bracket tag)" class=""}}
                     </div>
                 </div>
             </div>

@@ -86,44 +86,32 @@ class App
     protected function configureLaravel(): void
     {
         $this->laravel->booted(function ($app) {
-            $baseUrl = getenv('APP_URL');
-            $assetUrl = getenv('ASSET_URL');
-            
-            if ($baseUrl) {
-                $app['config']->set('app.url', $baseUrl);
-            }
-            if ($assetUrl) {
-                $app['config']->set('app.asset_url', $assetUrl);
-            }
-            
-            // Set bundle configuration for the framework to use
-            foreach ($this->bundleConfig as $key => $value) {
-                $app['config']->set("bundle.{$key}", $value);
-            }
-            
-            // Load and override configs from app root
-            $this->loadAppConfigs($app);
-        });
-    }
-
-    /**
-     * Load and override configs from app root directory
-     */
-    protected function loadAppConfigs($app): void
-    {
-        $appConfigPath = $this->bundleConfig['app_root'] . '/config';
-        
-        if (is_dir($appConfigPath)) {
-            $configFiles = glob($appConfigPath . '/*.php');
-            
-            foreach ($configFiles as $configFile) {
-                $configName = basename($configFile, '.php');
-                $configData = require $configFile;
+            // Read all config files from app's config directory
+            $appConfigPath = $this->bundleConfig['app_root'] . '/config';
+            if (is_dir($appConfigPath)) {
+                $configFiles = glob($appConfigPath . '/*.php');
                 
-                // Completely override the library config with app config
-                $app['config']->set($configName, $configData);
+                foreach ($configFiles as $configFile) {
+                    if(preg_match('/\.example\.php$/', $configFile)) {
+                        // Skip example config files
+                        continue;
+                    }
+                    $configName = basename($configFile, '.php');
+                    $configData = require $configFile;
+                    // Completely override the library config with app config
+                    $app['config']->set($configName, $configData);
+                }
             }
-        }
+
+            // Ensure bundle config values are set in Laravel app config namespace
+            foreach(config('bundle') as $key => $value) {
+                config(["app.$key" => $value]);
+            }
+            
+            // Now register service features with the loaded config
+            $appServiceProvider = new \Agnstk\Providers\AppServiceProvider($app);
+            $appServiceProvider->registerServiceFeatures();
+        });
     }
 
     /**

@@ -27,7 +27,16 @@ class ShortcodeService {
         
         // Set class properties
         $this->content = $content;
-        $this->shortcodes = config('shortcodes', config('app.registered_shortcodes', []));
+        
+        // Get shortcodes config with proper fallback handling
+        $shortcodes = config('shortcodes');
+        if (!is_array($shortcodes)) {
+            $shortcodes = config('shortcodes');
+            if (!is_array($shortcodes)) {
+                $shortcodes = [];
+            }
+        }
+        $this->shortcodes = $shortcodes;        
         
         // Auto-detect source format if not provided
         if ($sourceFormat === null) {
@@ -162,7 +171,7 @@ class ShortcodeService {
      * Usage: @shortcode('hello', ['title' => 'Custom Title'])
      */
     public function renderShortcodeDirective(string $shortcodeName, array $attributes = []): string {
-        $shortcodes = config('app.registered_shortcodes', []);
+        $shortcodes = config('shortcodes', []);
         
         if (!isset($shortcodes[$shortcodeName])) {
             return config('app.debug') ? "[shortcode '{$shortcodeName}' not found]" : '';
