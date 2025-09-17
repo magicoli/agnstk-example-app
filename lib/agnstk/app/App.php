@@ -32,6 +32,9 @@ class App
      */
     protected function bootstrap(): void
     {
+        // Load environment variables from main app directory first
+        $this->loadEnvironment();
+        
         // Framework autoloader should already be loaded by main app
         
         // Check for maintenance mode using app root from config
@@ -78,6 +81,33 @@ class App
         // Set environment variables for Laravel configuration
         putenv("APP_URL=" . $baseUrl);
         putenv("ASSET_URL=" . $assetUrl);
+    }
+
+    /**
+     * Load environment variables from main app .env file
+     */
+    protected function loadEnvironment(): void
+    {
+        $envFile = $this->bundleConfig['app_root'] . '/.env';
+        
+        if (file_exists($envFile)) {
+            $envLines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($envLines as $line) {
+                $line = trim($line);
+                // Skip comments and empty lines
+                if (empty($line) || strpos($line, '#') === 0) {
+                    continue;
+                }
+                // Parse key=value pairs
+                if (strpos($line, '=') !== false) {
+                    list($key, $value) = explode('=', $line, 2);
+                    $key = trim($key);
+                    $value = trim($value, '"\''); // Remove quotes
+                    putenv("$key=$value");
+                    $_ENV[$key] = $value;
+                }
+            }
+        }
     }
 
     /**
@@ -201,31 +231,89 @@ HTACCESS;
             $defaultConnection = $config->get('database.default');
             $connectionConfig = $config->get("database.connections.$defaultConnection");
             
-            // Only initialize for SQLite databases that don't exist
+            $databaseInitialized = false;
+            
+            // Handle SQLite database creation
             if ($connectionConfig['driver'] === 'sqlite') {
                 $databasePath = $connectionConfig['database'];
                 
                 // Ensure database file exists for SQLite
                 if (!file_exists($databasePath)) {
-                    // Create empty database file
                     touch($databasePath);
                     chmod($databasePath, 0644);
-                    
-                    // Run migrations if available
-                    if ($this->laravel->runningInConsole() === false) {
-                        // We're in web context, can't run migrations directly
-                        // Database will be created but migrations need to be run separately
-                    }
+                    $databaseInitialized = true;
                 }
             }
             
             // Test database connection
-            $this->laravel->make('db')->connection()->getPdo();
+            $pdo = $this->laravel->make('db')->connection()->getPdo();
+            
+            // Check if migrations need to be run (for both SQLite and MySQL)
+            $this->runMigrationsIfNeeded($databaseInitialized);
             
         } catch (\Exception $e) {
             // Log database initialization error but don't break the application
             if ($this->laravel->bound('log')) {
                 $this->laravel->make('log')->warning('Database initialization failed: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Run migrations if database is empty or newly created
+     */
+    protected function runMigrationsIfNeeded(bool $newDatabase = false): void
+    {
+        try {
+            $db = $this->laravel->make('db');
+            
+            // Check if migrations table exists
+            $migrationTableExists = false;
+            try {
+                $db->connection()->getPdo()->query("SELECT 1 FROM migrations LIMIT 1");
+                $migrationTableExists = true;
+            } catch (\Exception $e) {
+                // Table doesn't exist or is empty
+                $migrationTableExists = false;
+            }
+            
+            // Run migrations if it's a new database or migrations table doesn't exist
+            if ($newDatabase || !$migrationTableExists) {
+                $this->runMigrations();
+            }
+            
+        } catch (\Exception $e) {
+            // Silently handle migration errors to avoid breaking the app
+            if ($this->laravel->bound('log')) {
+                $this->laravel->make('log')->info('Migration check failed: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Run Laravel migrations programmatically
+     */
+    protected function runMigrations(): void
+    {
+        try {
+            $migrator = $this->laravel->make('migrator');
+            $repository = $migrator->getRepository();
+            
+            // Create the migration repository table if it doesn't exist
+            if (!$repository->repositoryExists()) {
+                $repository->createRepository();
+            }
+            
+            $migrationPath = $this->corePath . '/database/migrations';
+            
+            if (is_dir($migrationPath)) {
+                $migrator->run([$migrationPath]);
+            }
+            
+        } catch (\Exception $e) {
+            // Silently handle migration errors
+            if ($this->laravel->bound('log')) {
+                $this->laravel->make('log')->info('Migration execution failed: ' . $e->getMessage());
             }
         }
     }
