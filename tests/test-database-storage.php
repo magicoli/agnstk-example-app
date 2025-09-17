@@ -42,5 +42,22 @@ if ($laravel) {
     }
 }
 
+echo PHP_EOL;
+echo "Testing web accessibility of storage paths..." . PHP_EOL;
+
+$pages = array(
+    'storage/' => 403,
+    'storage/logs/laravel.log' => 403,
+    'storage/database/database.sqlite' => 403,
+  );
+
+foreach ($pages as $page => $expected_code) {
+    $url = rtrim( getenv('HOME_URL'), '/' ) . '/' . ltrim( $page, '/' );
+    $headers = testing_get_headers( $url );
+    $response = $headers[0] ?? '';
+    $response_code = preg_match( '#HTTP/\d+\.\d+\s+(\d{3})#', $response, $matches ) ? (int)$matches[1] : 0;
+    $test->assert_equals($expected_code, $response_code, "Response code for $url ... " );
+}    
+
 # Make sure to end with summary and proper exit code
 exit( $test->summary() ? 0 : 1 );

@@ -160,6 +160,35 @@ class App
                 mkdir($fullPath, 0755, true);
             }
         }
+        
+        // Ensure storage is protected from web access
+        $this->ensureStorageSecurity($appRoot);
+    }
+
+    /**
+     * Ensure storage directory is protected from web access
+     */
+    protected function ensureStorageSecurity(string $appRoot): void
+    {
+        $htaccessPath = $appRoot . '/storage/.htaccess';
+        
+        if (!file_exists($htaccessPath)) {
+            $htaccessContent = <<<'HTACCESS'
+# Deny all access to storage directory
+<Files "*">
+    Require all denied
+</Files>
+
+# Alternative for older Apache versions
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+HTACCESS;
+            
+            file_put_contents($htaccessPath, $htaccessContent);
+            chmod($htaccessPath, 0644);
+        }
     }
 
     /**
