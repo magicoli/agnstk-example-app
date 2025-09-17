@@ -103,3 +103,24 @@ if (!function_exists('resolve_file_path')) {
         return file_exists($fullPath) ? $fullPath : false;
     }
 }
+
+if(!function_exists('home_url')) {
+    /**
+     * Get the HOME_URL from environment or config
+     */
+    function home_url($path = ''): string {
+        $homeUrl = getenv('HOME_URL') ?: config('app.url', '');
+        return rtrim($homeUrl, '/') . '/' . ltrim($path, '/');
+    }
+}
+
+function random_string($length = 12, $specialChars = false) {
+    $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    if($specialChars) {
+        $chars .= "!@#$%^&*()_-=+;:,.?";
+    }
+    $password = substr( str_shuffle( $chars ), 0, $length );
+    return $password;
+}
+
+

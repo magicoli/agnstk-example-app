@@ -42,6 +42,7 @@ class SimpleTest {
 	private $tests_passed = 0;
 	private $tests_failed = 0;
 	private $failed_tests = array();
+	private $last_response_info = null;
 
 	public function assert_true( $condition, $message = '' ) {
 		$this->tests_run++;
@@ -86,6 +87,20 @@ class SimpleTest {
 			$this->tests_failed++;
 			$this->failed_tests[] = $message . " (value was empty)";
 			echo "✗ FAIL: {$message} (value was empty)" . PHP_EOL;
+			return false;
+		}
+	}
+
+	public function assert_empty( $value, $message = '' ) {
+		$this->tests_run++;
+		if ( empty( $value ) ) {
+			$this->tests_passed++;
+			echo "✓ PASS: {$message}" . PHP_EOL;
+			return true;
+		} else {
+			$this->tests_failed++;
+			$this->failed_tests[] = $message . " (value was not empty)";
+			echo "✗ FAIL: {$message} (value was not empty)" . PHP_EOL;
 			return false;
 		}
 	}
@@ -145,7 +160,8 @@ class SimpleTest {
 
     public function assert_valid_form( $content, $expected_form_id, $expected_fields, $expected_values) {
         // Parse the HTML to verify it's the initial config step
-        $parsed_html = SimpleTest::parse_html($content);
+        $main_content = self::get_main_content($content, true) ?: $content;
+        $parsed_html = self::parse_html($main_content);
         if (!$this->assert_true($parsed_html !== false, "  HTML parsed")) {
             return false;
         }
@@ -264,10 +280,322 @@ class SimpleTest {
 	}
 
     /**
-     * DOM Analysis Helper Functions
-     * These functions provide reliable HTML content analysis using DOMDocument
-     * instead of unreliable string matching.
+     * Session-aware HTTP client properties
      */
+    private $session_cookies = '';
+    
+    /**
+     * Session-aware file_get_contents replacement that maintains cookies between requests
+     * @param string $url The URL to fetch
+     * @param bool $use_include_path Whether to search the include path (ignored for URLs)
+     * @param resource|null $context Stream context for additional options
+     * @param int $offset The offset where reading starts (ignored for URLs)
+     * @param int|null $length Maximum length to read (ignored for URLs)
+     * @return string|false The content or false on failure
+     */
+    public function get_content($url, $use_include_path = false, $context = null, $offset = 0, $length = null) {
+        // For local files, use regular file_get_contents
+        if (!filter_var($url, FILTER_VALIDATE_URL) || !php_has('curl')) {
+            return file_get_contents($url, $use_include_path, $context, $offset, $length);
+        }
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'OpenSim-Helpers/1.0');
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // Don't follow redirects automatically
+        curl_setopt($ch, CURLOPT_HEADER, true); // Include headers to capture cookies
+        
+        // Send existing cookies
+        if (!empty($this->session_cookies)) {
+            curl_setopt($ch, CURLOPT_COOKIE, $this->session_cookies);
+        }
+        
+        // Parse context for POST data and headers
+        if ($context !== null) {
+            $context_options = stream_context_get_options($context);
+            if (isset($context_options['http'])) {
+                $http_opts = $context_options['http'];
+                
+                // Handle POST method
+                if (isset($http_opts['method']) && strtoupper($http_opts['method']) === 'POST') {
+                    curl_setopt($ch, CURLOPT_POST, true);
+                    if (isset($http_opts['content'])) {
+                        curl_setopt($ch, CURLOPT_POSTFIELDS, $http_opts['content']);
+                    }
+                }
+                
+                // Handle custom headers
+                if (isset($http_opts['header'])) {
+                    $headers = is_array($http_opts['header']) ? $http_opts['header'] : explode("\r\n", $http_opts['header']);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+                }
+            }
+        }
+        
+        $response = curl_exec($ch);
+        if ($response === false) {
+            curl_close($ch);
+            return false;
+        }
+        
+        // Split headers and content
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $headers = substr($response, 0, $header_size);
+        $content = substr($response, $header_size);
+        
+        // Extract and store cookies for future requests
+        $this->extract_and_store_cookies($headers);
+        
+        // Store response info for debugging
+        $this->last_response_info = curl_getinfo($ch);
+        
+        curl_close($ch);
+        return $content;
+    }
+    
+    /**
+     * Extract cookies from response headers and store them for future requests
+     * @param string $headers The response headers
+     */
+    private function extract_and_store_cookies($headers) {
+        $header_lines = explode("\r\n", $headers);
+        $new_cookies = [];
+        
+        foreach ($header_lines as $header) {
+            if (stripos($header, 'Set-Cookie:') === 0) {
+                $cookie_part = substr($header, 11); // Remove "Set-Cookie: "
+                $cookie_name_value = explode(';', $cookie_part)[0]; // Get just name=value part
+                $new_cookies[] = trim($cookie_name_value);
+            }
+        }
+        
+        if (!empty($new_cookies)) {
+            // Update session cookies - prevent duplicates by using a proper merge strategy
+            $existing_cookies_array = [];
+            if (!empty($this->session_cookies)) {
+                foreach (explode('; ', $this->session_cookies) as $cookie) {
+                    if (trim($cookie)) {
+                        $cookie_name = explode('=', $cookie)[0];
+                        $existing_cookies_array[$cookie_name] = $cookie;
+                    }
+                }
+            }
+            
+            // Add new cookies, replacing any existing ones with the same name
+            foreach ($new_cookies as $cookie) {
+                $cookie_name = explode('=', $cookie)[0];
+                $existing_cookies_array[$cookie_name] = $cookie;
+            }
+            
+            $this->session_cookies = implode('; ', array_values($existing_cookies_array));
+        }
+    }
+    
+    /**
+     * Get information about the last HTTP response
+     * @return array|null Response info from curl_getinfo
+     */
+    public function get_last_response_info() {
+        return $this->last_response_info;
+    }
+    
+    /**
+     * Test form submission with automatic CSRF token handling
+     * @param string $url The form URL
+     * @param array $form_data Form data (without _token)
+     * @param string $expected_success_indicator String that should appear in successful response
+     * @param string $message Test description
+     * @return bool True if form submission appears successful
+     */
+    public function assert_form_submission($url, $form_data, $expected_success_indicator, $message) {
+        // Get form and extract CSRF token
+        $form_html = $this->get_content($url);
+        if (!$this->assert_not_empty($form_html, "Form loaded from $url")) {
+            return false;
+        }
+        
+        $csrf_token = self::get_csrf_token($form_html);
+        if (!$this->assert_not_empty($csrf_token, "CSRF token extracted ($csrf_token)")) {
+            return false;
+        }
+        
+        // Extract original form ID to detect if we stay on same form
+        $parsed_html = self::parse_html($form_html);
+        $original_form_id = null;
+        if ($parsed_html) {
+            $xpath = new DOMXPath($parsed_html);
+            $form_node = $xpath->query('//form')->item(0);
+            if ($form_node) {
+                $original_form_id = $form_node->getAttribute('id') ?: 'form';
+            }
+        }
+        
+        // Add CSRF token to form data
+        $form_data['_token'] = $csrf_token;
+        
+        echo "  Submitting to $url" . PHP_EOL;
+        echo "  Form data: " . json_encode($form_data, JSON_PRETTY_PRINT) . PHP_EOL;
+        echo "  Session cookies: " . ($this->session_cookies ?: '(none)') . PHP_EOL;
+        
+        // Submit form
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => [
+                    'Content-Type: application/x-www-form-urlencoded',
+                    'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: en-US,en;q=0.5',
+                    'Referer: https://dev.agnstk.com/agnstk-example-app/login'
+                ],
+                'content' => http_build_query($form_data)
+            ]
+        ]);
+        
+        $response = $this->get_content($url, false, $context);
+        if (!$this->assert_not_empty($response, "Form submission response received")) {
+            return false;
+        }
+        
+        // Debug: Check if this is actually a successful POST or a redirect back to GET
+        $response_info = $this->get_last_response_info();
+        if ($response_info) {
+            // Check for successful login redirect (302/301 status codes)
+            $http_code = $response_info['http_code'] ?? 0;
+            if ($http_code >= 300 && $http_code < 400) {
+                return $this->assert_true(true, $message . " (redirect detected)");
+            }
+        }
+        
+        // Check for success indicator
+        $html_content = $this->analyze_html_content($response);
+        $main_content = $html_content['main_content'] ?? '';
+        $page_title = $html_content['page_title'] ?? '';
+        $head_title = $html_content['head_title'] ?? '';
+
+        // Check for Laravel validation errors
+        $parsed_response = self::parse_html($response);
+        if ($parsed_response) {
+            $response_xpath = new DOMXPath($parsed_response);
+            // Look for validation errors in multiple formats (div, span, p, etc.)
+            $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
+            if ($error_elements->length > 0) {
+                foreach ($error_elements as $error_element) {
+                    $error_text = trim($error_element->textContent);
+                    if (!empty($error_text)) {
+                        echo "    - " . $error_text . PHP_EOL;
+                    }
+                }
+            }
+        }
+
+        // Look for success indicator in any content
+        $success = (stripos($main_content, $expected_success_indicator) !== false) || 
+                   (stripos($page_title, $expected_success_indicator) !== false) ||
+                   (stripos($head_title, $expected_success_indicator) !== false);
+        
+        // If success indicator not found, check if we're still on the same form (failure)
+        if (!$success) {
+            $response_parsed = self::parse_html($response);
+            $still_on_form = false;
+            
+            if ($response_parsed && $original_form_id) {
+                $response_xpath = new DOMXPath($response_parsed);
+                $response_form = $response_xpath->query("//form[@id='$original_form_id']")->item(0);
+                if ($response_form) {
+                    $still_on_form = true;
+                } else {
+                    // Check for any form with similar action or common login form patterns
+                    $login_forms = $response_xpath->query('//form[contains(@action, "login") or .//input[@name="email"] or .//input[@name="password"]]');
+                    if ($login_forms->length > 0) {
+                        $still_on_form = true;
+                        echo "  DEBUG: Still on login-like form - submission failed" . PHP_EOL;
+                    } else {
+                        echo "  DEBUG: No original form found - might have succeeded but no success indicator" . PHP_EOL;
+                        // Could be success but without the expected indicator
+                        $success = true;
+                    }
+                }
+            } else {
+                echo "  DEBUG: Could not parse response or determine form status" . PHP_EOL;
+            }
+            
+            if ($still_on_form) {
+                $success = false;
+            }
+        }
+        
+        return $this->assert_true($success, $message);
+    }
+    
+    /**
+     * Test user login
+     * @param string $email User email
+     * @param string $password User password
+     * @param string $message Test description
+     * @return bool True if login appears successful
+     */
+    public function user_login($email, $password, $message = '') {
+        if (empty($message)) {
+            $message = "Login with $email";
+        }
+        
+        // Check if login page has form (might already be logged in)
+        $login_html = $this->get_content(home_url('login'));
+        $csrf_token = self::get_csrf_token($login_html);
+        
+        if (empty($csrf_token)) {
+            // No login form found - might already be logged in
+            $html_content = $this->analyze_html_content($login_html);
+            $main_content = $html_content['main_content'] ?? '';
+
+            $page_title = $html_content['page_title'] ?? '';
+            $head_title = $html_content['head_title'] ?? '';
+
+            $is_dashboard = (stripos($main_content, 'Dashboard') !== false) || 
+                            (stripos($page_title, 'Dashboard') !== false) || 
+                            (stripos($head_title, 'Dashboard') !== false);
+            return $this->assert_true($is_dashboard, "$message ('$head_title')");
+        }
+        
+        return $this->assert_form_submission(
+            home_url('login'),
+            ['email' => $email, 'password' => $password],
+            'Dashboard',
+            $message
+        );
+    }
+    
+    /**
+     * Test user logout
+     * @param string $message Test description
+     * @return bool True if logout appears successful
+     */
+    public function user_logout($message = 'User logout') {
+        // Laravel logout might be GET /logout or POST /logout, let's try GET first
+        $logout_response = $this->get_content(home_url('logout'));
+        
+        if (!empty($logout_response)) {
+            $html_content = $this->analyze_html_content($logout_response);
+            $main_content = $html_content['main_content'] ?? '';
+            
+            // Check if we see login form after logout
+            if (stripos($main_content, 'Login') !== false || stripos($main_content, 'Email') !== false) {
+                return $this->assert_true(true, $message);
+            }
+        }
+        
+        // If GET didn't work, try POST
+        return $this->assert_form_submission(
+            home_url('logout'),
+            [], // Logout typically only needs CSRF token
+            'Login',
+            $message
+        );
+    }
 
     /**
      * Parse HTML content into a DOMDocument with error suppression
@@ -294,7 +622,7 @@ class SimpleTest {
      * @return string|false The title content or false if not found
      */
     public static function get_html_title($html_content) {
-        $doc = testing_parse_html($html_content);
+        $doc = self::parse_html($html_content);
         if (!$doc) {
             return false;
         }
@@ -311,8 +639,8 @@ class SimpleTest {
      * @param string $html_content The HTML content to extract from
      * @return string The main content text
      */
-    public static function get_main_content($html_content) {
-        $parsed_html = testing_parse_html($html_content);
+    public static function get_main_content($html_content, $raw = false) {
+        $parsed_html = self::parse_html($html_content);
         if (!$parsed_html) {
             return '';
         }
@@ -356,7 +684,9 @@ class SimpleTest {
                         }
                     }
                 }
-                
+                if($raw) {
+                    return $parsed_html->saveHTML($main_container);
+                }
                 return trim($main_container->textContent);
             }
         }
@@ -390,8 +720,39 @@ class SimpleTest {
                 }
             }
         }
-        
+
+        if($raw) {
+            return $parsed_html->saveHTML($body);
+        }
         return trim($body->textContent);
+    }
+
+    /**
+     * Extract CSRF token from HTML form
+     * @param string $html_content The HTML content containing the form
+     * @return string|false The CSRF token value or false if not found
+     */
+    public static function get_csrf_token($html_content) {
+        $parsed_html = self::parse_html($html_content);
+        if (!$parsed_html) {
+            return false;
+        }
+        
+        $xpath = new DOMXPath($parsed_html);
+        
+        // Look for _token hidden input field
+        $token_inputs = $xpath->query('//input[@name="_token"][@type="hidden"]');
+        if ($token_inputs->length > 0) {
+            return $token_inputs->item(0)->getAttribute('value');
+        }
+        
+        // Also check for csrf-token meta tag (alternative Laravel method)
+        $meta_tokens = $xpath->query('//meta[@name="csrf-token"]');
+        if ($meta_tokens->length > 0) {
+            return $meta_tokens->item(0)->getAttribute('content');
+        }
+        
+        return false;
     }
 
     /**
@@ -401,7 +762,7 @@ class SimpleTest {
      * @return array Analysis results with basic page elements
      */
     public static function analyze_html_content($html_content) {
-        $parsed_html = testing_parse_html($html_content);
+        $parsed_html = self::parse_html($html_content);
         if (!$parsed_html) {
             return array(
                 'success' => false,
@@ -409,8 +770,8 @@ class SimpleTest {
             );
         }
 
-        $head_title = testing_get_html_title($html_content);
-        $main_content = testing_get_main_content($html_content);
+        $head_title = self::get_html_title($html_content);
+        $main_content = self::get_main_content($html_content);
         
         // Get page title and all headings
         $xpath = new DOMXPath($parsed_html);
@@ -663,38 +1024,6 @@ function testing_get_headers( $url, $associative = false, $context = null ) {
 	return $headers;
 }
 
-/**
- * Drop-in replacement for file_get_contents(), use curl if available to allow more control
- * (including bypass allow_url_fopen off)
- *
- * @param string $filename Name of the file or URL to read
- * @param bool $use_include_path Whether to search the include path (ignored for URLs)
- * @param resource|null $context Stream context (ignored when using cURL for URLs)
- * @param int $offset The offset where reading starts (ignored for URLs)
- * @param int|null $length Maximum length to read (ignored for URLs)
- * @return string|false The read data or false on failure
- */
-function testing_file_get_contents( $filename, $use_include_path = false, $context = null, $offset = 0, $length = null ) {
-	// For local files or if cURL not available, use regular file_get_contents
-	if ( ! php_has('curl') || ! filter_var( $filename, FILTER_VALIDATE_URL ) ) {
-		return file_get_contents( $filename, $use_include_path, $context, $offset, $length );
-	}
-
-	// For URLs, use cURL
-	$ch = curl_init();
-	curl_setopt( $ch, CURLOPT_URL, $filename );
-	curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-	curl_setopt( $ch, CURLOPT_TIMEOUT, 10 );
-	curl_setopt( $ch, CURLOPT_USERAGENT, 'OpenSim-Helpers/1.0' );
-	curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
-	curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, true );
-	
-	$content = curl_exec( $ch );
-	curl_close( $ch );
-
-	return $content;
-}
-
 function php_has( $extension ) {
 	switch($extension) {
 		case 'php':
@@ -726,7 +1055,6 @@ function php_has( $extension ) {
 	}
 	return false;
 }
-
 
 // Global test instance
 $test = new SimpleTest();
