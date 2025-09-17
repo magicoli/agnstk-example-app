@@ -22,9 +22,12 @@ class LoginController extends Controller {
     /**
      * Where to redirect users after login.
      *
-     * @var string
+     * @return string
      */
-    protected $redirectTo = '/dashboard';
+    protected function redirectTo() {
+        // Use AGNSTK route generation for proper URL handling
+        return route('dashboard');
+    }
 
     /**
      * Create a new controller instance.
