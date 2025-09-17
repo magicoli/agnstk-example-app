@@ -212,6 +212,28 @@ class SimpleTest {
         return true;
     }
 
+    /**
+     * Test if path is a valid directory
+     */
+    public function assert_directory($path, $message = '') {
+        $this->tests_run++;
+        if (is_dir($path)) {
+            $this->tests_passed++;
+            echo "✓ PASS: {$message} ({$path})" . PHP_EOL;
+            return true;
+        } else if (file_exists($path)) {
+            $this->tests_failed++;
+            $this->failed_tests[] = $message . " (not a directory: $path)";
+            echo "✗ FAIL: {$message} (not a directory: $path, it's a file)" . PHP_EOL;
+            return false;
+        } else {
+            $this->tests_failed++;
+            $this->failed_tests[] = $message . " (not a directory: $path)";
+            echo "✗ FAIL: {$message} (not a directory: $path)" . PHP_EOL;
+            return false;
+        }
+    }
+
     public function get_stats() {
 		return array(
 			'run' => $this->tests_run,

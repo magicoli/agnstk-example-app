@@ -85,6 +85,9 @@ class App
      */
     protected function configureLaravel(): void
     {
+        // Override Laravel's paths to use main app directories for storage and database
+        $this->configureAppPaths();
+        
         $this->laravel->booted(function ($app) {
             // Read all config files from app's config directory
             $appConfigPath = $this->bundleConfig['app_root'] . '/config';
@@ -115,6 +118,98 @@ class App
     }
 
     /**
+     * Configure Laravel application paths to use main app directories
+     */
+    protected function configureAppPaths(): void
+    {
+        $appRoot = $this->bundleConfig['app_root'];
+        
+        // Override Laravel paths to point to main app directories
+        $this->laravel->useStoragePath($appRoot . '/storage');
+        $this->laravel->useDatabasePath($appRoot . '/storage/database');
+        
+        // Ensure all required storage directories exist
+        $this->ensureStorageDirectories($appRoot);
+        
+        // Initialize database if needed (after Laravel is fully booted)
+        $this->laravel->booted(function () {
+            $this->initializeDatabase();
+        });
+    }
+
+    /**
+     * Ensure all required storage directories exist
+     */
+    protected function ensureStorageDirectories(string $appRoot): void
+    {
+        $requiredDirs = [
+            '/storage',
+            '/storage/app',
+            '/storage/app/public',
+            '/storage/database',
+            '/storage/framework',
+            '/storage/framework/cache',
+            '/storage/framework/sessions',
+            '/storage/framework/views',
+            '/storage/logs'
+        ];
+        
+        foreach ($requiredDirs as $dir) {
+            $fullPath = $appRoot . $dir;
+            if (!is_dir($fullPath)) {
+                mkdir($fullPath, 0755, true);
+            }
+        }
+    }
+
+    /**
+     * Initialize database using Laravel's proper methods
+     */
+    protected function initializeDatabase(): void
+    {
+        try {
+            $config = $this->laravel->make('config');
+            $defaultConnection = $config->get('database.default');
+            $connectionConfig = $config->get("database.connections.$defaultConnection");
+            
+            // Only initialize for SQLite databases that don't exist
+            if ($connectionConfig['driver'] === 'sqlite') {
+                $databasePath = $connectionConfig['database'];
+                
+                // Ensure database file exists for SQLite
+                if (!file_exists($databasePath)) {
+                    // Create empty database file
+                    touch($databasePath);
+                    chmod($databasePath, 0644);
+                    
+                    // Run migrations if available
+                    if ($this->laravel->runningInConsole() === false) {
+                        // We're in web context, can't run migrations directly
+                        // Database will be created but migrations need to be run separately
+                    }
+                }
+            }
+            
+            // Test database connection
+            $this->laravel->make('db')->connection()->getPdo();
+            
+        } catch (\Exception $e) {
+            // Log database initialization error but don't break the application
+            if ($this->laravel->bound('log')) {
+                $this->laravel->make('log')->warning('Database initialization failed: ' . $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Get the Laravel application instance (for testing purposes)
+     */
+    public function getLaravel(): Application
+    {
+        return $this->laravel;
+    }
+
+    /**
      * Handle the incoming HTTP request
      */
     public function handleRequest(): void
@@ -128,5 +223,21 @@ class App
 
         $request = Request::capture();
         $this->laravel->handleRequest($request);
+    }
+
+    /**
+     * Handle the incoming HTTP request
+     */
+    public function loadRequest(): void
+    {
+        // Check for maintenance mode again (framework level)
+        $agnstk_path = $this->corePath;
+        $maintenance = $agnstk_path . '/storage/framework/maintenance.php';
+        if (file_exists($maintenance)) {
+            require $maintenance;
+        }
+
+        $request = Request::capture();
+        // $this->laravel->handleRequest($request);
     }
 }
