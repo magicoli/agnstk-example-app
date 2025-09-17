@@ -22,7 +22,9 @@ $test->assert_directory( config_path(), 'Config path');
 $test->assert_directory( storage_path(), 'Storage path');
 $test->assert_directory( database_path(), 'Database path');
 
-$test->assert_not_empty( config('database'), 'Database default connection is set');
+$test->assert_not_empty( config('database'), 'Database config is set');
+$dbType = config('database.default');
+$test->assert_not_empty( $dbType, "Database default connection type ($dbType)" );
 
 echo PHP_EOL;
 echo "Testing database configuration..." . PHP_EOL;
