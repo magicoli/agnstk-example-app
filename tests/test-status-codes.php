@@ -16,6 +16,7 @@ $pages = array(
     'user/dashboard' => 302, // Redirect to login
     'login' => 200,
     'register' => 200,
+    'password/reset' => 200, // Password reset request form
     '.env' => 403,
     'config/' => 403,
   );

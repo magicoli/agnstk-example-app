@@ -22,7 +22,10 @@ class ResetPasswordController extends Controller {
     /**
      * Where to redirect users after resetting their password.
      *
-     * @var string
+     * @return string
      */
-    protected $redirectTo = '/home';
+    protected function redirectTo() {
+        // Use AGNSTK route generation for proper URL handling
+        return route('dashboard');
+    }
 }
