@@ -305,7 +305,8 @@ class SimpleTest {
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         curl_setopt($ch, CURLOPT_USERAGENT, 'OpenSim-Helpers/1.0');
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // Don't follow redirects automatically
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects automatically
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 5); // Limit redirects to prevent infinite loops
         curl_setopt($ch, CURLOPT_HEADER, true); // Include headers to capture cookies
         
         // Send existing cookies
@@ -351,7 +352,10 @@ class SimpleTest {
         
         // Store response info for debugging
         $this->last_response_info = curl_getinfo($ch);
-        
+        $redirect_count = curl_getinfo($ch, CURLINFO_REDIRECT_COUNT);
+        $effective_url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
         curl_close($ch);
         return $content;
     }
@@ -410,7 +414,7 @@ class SimpleTest {
      * @param string $message Test description
      * @return bool True if form submission appears successful
      */
-    public function assert_form_submission($url, $form_data, $expected_success_indicator, $message) {
+    public function assert_form_submission($url, $form_data, $expected_success_indicator, $message, $expect_success = true) {
         // Get form and extract CSRF token
         $form_html = $this->get_content($url);
         if (!$this->assert_not_empty($form_html, "Form loaded from $url")) {
@@ -452,7 +456,7 @@ class SimpleTest {
                     'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
                     'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     'Accept-Language: en-US,en;q=0.5',
-                    'Referer: https://dev.agnstk.com/agnstk-example-app/login'
+                    'Referer: ' . $url
                 ],
                 'content' => http_build_query($form_data)
             ]
@@ -463,7 +467,7 @@ class SimpleTest {
         } catch (Exception $e) {
             return $this->assert_false(true, "$message - Exception during form submission: " . $e->getMessage());
         }
-        
+
         if (!$this->assert_not_empty($response, "Form submission response received")) {
             return false;
         }
@@ -476,20 +480,22 @@ class SimpleTest {
         } catch (Exception $e) {
             return $this->assert_false(true, "$message - Exception getting response info: " . $e->getMessage());
         }
-        $response_info = $this->get_last_response_info();
-        if ($response_info) {
-            $http_code = $response_info['http_code'] ?? 0;
-            
-            // Handle HTTP error codes
-            if ($http_code >= 500) {
-                return $this->assert_false(true, "$message - Server error (HTTP $http_code)");
-            } elseif ($http_code >= 400) {
-                return $this->assert_false(true, "$message - Client error (HTTP $http_code)");
-            } elseif ($http_code >= 300 && $http_code < 400) {
-                return $this->assert_true(true, $message . " (redirect {$response_info['redirect_url']})");
-            }
-        }
         
+        if (!$response_info = $this->get_last_response_info()) {
+            return $this->assert_false(true, "$message - Could not get HTTP response info");
+        }
+
+        $http_code = $response_info['http_code'] ?? 0;
+        
+        // Handle HTTP error codes
+        if ($http_code >= 500) {
+            return $this->assert_false(true, "$message - Server error (HTTP $http_code)");
+        } elseif ($http_code >= 400) {
+            return $this->assert_false(true, "$message - Client error (HTTP $http_code)");
+        } elseif ($http_code < 200 || $http_code >= 300) {
+            return $this->assert_false(true, "$message - Unexpected response code (HTTP $http_code)");
+        }
+
         // Check for success indicator
         $html_content = $this->analyze_html_content($response);
         $main_content = $html_content['main_content'] ?? '';
@@ -498,71 +504,77 @@ class SimpleTest {
 
         // Check for Laravel validation errors and success messages
         $parsed_response = self::parse_html($response);
-        if ($parsed_response) {
-            $response_xpath = new DOMXPath($parsed_response);
-            
-            // Look for validation errors in multiple formats (div, span, p, etc.)
-            $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
-            if ($error_elements->length > 0) {
-                echo "  Errors found:" . PHP_EOL;
-                foreach ($error_elements as $error_element) {
-                    $error_text = trim($error_element->textContent);
-                    if (!empty($error_text)) {
-                        echo "    - " . $error_text . PHP_EOL;
-                    }
-                }
-            }
-            
-            // Look for success messages
-            $success_elements = $response_xpath->query('//*[contains(@class, "alert-success") or contains(@class, "success")]');
-            if ($success_elements->length > 0) {
-                echo "  Success messages found:" . PHP_EOL;
-                foreach ($success_elements as $success_element) {
-                    $success_text = trim($success_element->textContent);
-                    if (!empty($success_text)) {
-                        echo "    + " . $success_text . PHP_EOL;
-                    }
+        if (!$parsed_response) {
+            return $this->assert_false(true, "$message - Could not parse response HTML");
+        }
+        $response_xpath = new DOMXPath($parsed_response);
+
+        // End of basic form verifications, we can now search for actual success or failure
+
+        // Look for success indicators
+        $success = empty($expected_success_indicator) ||
+                    (stripos($main_content, $expected_success_indicator) !== false) || 
+                    (stripos($page_title, $expected_success_indicator) !== false) ||
+                    (stripos($head_title, $expected_success_indicator) !== false);
+
+        // Look for success messages
+        $success_elements = $response_xpath->query('//*[contains(@class, "alert-success") or contains(@class, "success")]');
+        if ($success_elements->length > 0) {
+            foreach ($success_elements as $success_element) {
+                $success_text = trim($success_element->textContent);
+                if (!empty($success_text)) {
+                    echo "        Success message: " . var_export($success_text, true) . PHP_EOL;
                 }
             }
         }
 
-        // Look for success indicator in any content
-        $success = (stripos($main_content, $expected_success_indicator) !== false) || 
-                   (stripos($page_title, $expected_success_indicator) !== false) ||
-                   (stripos($head_title, $expected_success_indicator) !== false);
-        
-        // If success indicator not found, check if we're still on the same form (failure)
-        if (!$success) {
-            $response_parsed = self::parse_html($response);
-            $still_on_form = false;
-            
-            if ($response_parsed && $original_form_id) {
-                $response_xpath = new DOMXPath($response_parsed);
-                $response_form = $response_xpath->query("//form[@id='$original_form_id']")->item(0);
-                if ($response_form) {
-                    $still_on_form = true;
-                } else {
-                    // Check for any form that might be the same form (failed submission returns to form)
-                    $similar_forms = $response_xpath->query('//form');
-                    if ($similar_forms->length > 0) {
-                        $still_on_form = true;
-                        echo "  DEBUG: Form found - submission may have failed" . PHP_EOL;
-                    } else {
-                        echo "  DEBUG: No form found - might have succeeded but no success indicator" . PHP_EOL;
-                        // Could be success but without the expected indicator
-                        $success = true;
-                    }
+        // Look for validation errors in multiple formats and classes
+        $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "alert-warning") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
+        if ($error_elements->length > 0) {
+            foreach ($error_elements as $error_element) {
+                $error_text = trim($error_element->textContent);
+                if (!empty($error_text)) {
+                    echo "        Error message: " . var_export($error_text, true) . PHP_EOL;
                 }
-            } else {
-                echo "  DEBUG: Could not parse response or determine form status" . PHP_EOL;
             }
-            
-            if ($still_on_form) {
+            $success = false;
+        } else {
+            // Look for invalid form fields (fields with is-invalid class)
+            $invalid_fields = $response_xpath->query('//input[contains(@class, "is-invalid")] | //select[contains(@class, "is-invalid")] | //textarea[contains(@class, "is-invalid")]');
+            if ($invalid_fields->length > 0) {
+                foreach ($invalid_fields as $field) {
+                    $field_name = $field->getAttribute('name') ?: $field->getAttribute('id') ?: 'unnamed';
+                    $field_type = $field->nodeName;
+                    echo "        Invalid field: " . $field_name . PHP_EOL;
+                }
                 $success = false;
             }
         }
-        
-        return $this->assert_true($success, $message);
+
+        if (
+            ($success_elements->length === 0 || !$success)
+            && ($error_elements->length === 0 || !$error_elements)
+            && ($invalid_fields->length === 0 || !$invalid_fields)
+        ) {
+            
+            // Special check for login: if we end up back at login page after login attempt, that's a failure
+            if (stripos($url, 'login') !== false && stripos($response_info['url'] ?? '', 'login') !== false) {
+                // Try to access dashboard directly to see if session is actually established
+                $dashboard_url = str_replace('/login', '/user/dashboard', $url);
+                $dashboard_content = $this->get_content($dashboard_url);
+                if ($dashboard_content && stripos($dashboard_content, 'Dashboard') !== false) {
+                    $success = true;
+                } else {
+                    $success = false;
+                }
+            }
+        }
+
+        if($expect_success) {
+            return $this->assert_true($success, "$message");
+        } else {
+            return $this->assert_false($success, "$message (expected failure)");
+        }
     }
     
     /**
@@ -570,164 +582,24 @@ class SimpleTest {
      * @param string $email User email
      * @param string $password User password
      * @param string $message Test description
-     * @return bool True if login appears successful
+     * @param bool $expect_success Whether to expect success or failure
+     * @return bool True if test passes (matches expectation)
      */
     public function user_login($email, $password, $message = '', $expect_success = true) {
         if (empty($message)) {
             $message = "Login with $email";
         }
-        
         // Clear session cookies for fresh login attempt
         $this->session_cookies = '';
         
-        // Check if login page has form (might already be logged in)
-        $login_html = $this->get_content(home_url('login'));
-        $csrf_token = self::get_csrf_token($login_html);
-        
-        if (empty($csrf_token)) {
-            // No login form found - might already be logged in
-            $html_content = $this->analyze_html_content($login_html);
-            $main_content = $html_content['main_content'] ?? '';
-
-            $page_title = $html_content['page_title'] ?? '';
-            $head_title = $html_content['head_title'] ?? '';
-
-            $is_dashboard = (stripos($main_content, 'Dashboard') !== false) || 
-                            (stripos($page_title, 'Dashboard') !== false) || 
-                            (stripos($head_title, 'Dashboard') !== false);
-            if($expect_success) {
-                return $this->assert_true($is_dashboard, "$message ('$head_title')");
-            } else {
-                return $this->assert_false($is_dashboard, "$message - expected failure ('$head_title')");
-            }
-        }
-        
-        // Custom login form submission with login-specific logic
-        $url = home_url('login');
-        $form_data = ['email' => $email, 'password' => $password];
-        $expected_success_indicator = 'Dashboard';
-        
-        // Extract original form ID to detect if we stay on same form
-        $parsed_html = self::parse_html($login_html);
-        $original_form_id = null;
-        if ($parsed_html) {
-            $xpath = new DOMXPath($parsed_html);
-            $form_node = $xpath->query('//form')->item(0);
-            if ($form_node) {
-                $original_form_id = $form_node->getAttribute('id') ?: 'form';
-            }
-        }
-        
-        // Add CSRF token to form data
-        $form_data['_token'] = $csrf_token;
-        
-        // echo "  Submitting to $url" . PHP_EOL;
-        // echo "  Form data: " . json_encode($form_data, JSON_PRETTY_PRINT) . PHP_EOL;
-        // echo "  Session cookies: " . ($this->session_cookies ?: '(none)') . PHP_EOL;
-        
-        // Submit form
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => [
-                    'Content-Type: application/x-www-form-urlencoded',
-                    'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language: en-US,en;q=0.5',
-                    'Referer: https://dev.agnstk.com/agnstk-example-app/login'
-                ],
-                'content' => http_build_query($form_data)
-            ]
-        ]);
-        
-        $response = $this->get_content($url, false, $context);
-        if (!$this->assert_not_empty($response, "Form submission response received")) {
-            return false;
-        }
-        
-        // Check for redirect and determine success based on destination
-        $response_info = $this->get_last_response_info();
-        if ($response_info) {
-            $http_code = $response_info['http_code'] ?? 0;
-            if ($http_code >= 300 && $http_code < 400) {
-                $redirect_url = $response_info['redirect_url'] ?? '';
-                // Check if redirect goes to dashboard (success) or back to login (failure)
-                $is_success_redirect = stripos($redirect_url, '/dashboard') !== false || 
-                                     stripos($redirect_url, '/user') !== false ||
-                                     stripos($redirect_url, '/home') !== false;
-                $is_failure_redirect = stripos($redirect_url, '/login') !== false;
-                
-                if ($expect_success) {
-                    return $this->assert_true($is_success_redirect, $message . " (redirect $redirect_url)");
-                } else {
-                    return $this->assert_true($is_failure_redirect, $message . " - expected failure (redirect $redirect_url)");
-                }
-            }
-        }
-        
-        // Check for success indicator
-        $html_content = $this->analyze_html_content($response);
-        $main_content = $html_content['main_content'] ?? '';
-        $page_title = $html_content['page_title'] ?? '';
-        $head_title = $html_content['head_title'] ?? '';
-
-        // Check for Laravel validation errors
-        $parsed_response = self::parse_html($response);
-        if ($parsed_response) {
-            $response_xpath = new DOMXPath($parsed_response);
-            $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
-            if ($error_elements->length > 0) {
-                foreach ($error_elements as $error_element) {
-                    $error_text = trim($error_element->textContent);
-                    if (!empty($error_text)) {
-                        echo "    - " . $error_text . PHP_EOL;
-                    }
-                }
-            }
-        }
-
-        // Look for success indicator in any content
-        $success = (stripos($main_content, $expected_success_indicator) !== false) || 
-                   (stripos($page_title, $expected_success_indicator) !== false) ||
-                   (stripos($head_title, $expected_success_indicator) !== false);
-        
-        // If success indicator not found, check if we're still on login form (login-specific logic)
-        if (!$success) {
-            $response_parsed = self::parse_html($response);
-            $still_on_form = false;
-            
-            if ($response_parsed && $original_form_id) {
-                $response_xpath = new DOMXPath($response_parsed);
-                $response_form = $response_xpath->query("//form[@id='$original_form_id']")->item(0);
-                if ($response_form) {
-                    $still_on_form = true;
-                } else {
-                    // Check for any form with similar action or common login form patterns (login-specific)
-                    $login_forms = $response_xpath->query('//form[contains(@action, "login") or .//input[@name="email"] or .//input[@name="password"]]');
-                    if ($login_forms->length > 0) {
-                        $still_on_form = true;
-                        echo "  DEBUG: Still on login-like form - submission failed" . PHP_EOL;
-                    } else {
-                        echo "  DEBUG: No original form found - might have succeeded but no success indicator" . PHP_EOL;
-                        // Could be success but without the expected indicator
-                        $success = true;
-                    }
-                }
-            } else {
-                echo "  DEBUG: Could not parse response or determine form status" . PHP_EOL;
-            }
-            
-            if ($still_on_form) {
-                $success = false;
-            }
-        }
-        
-        if($expect_success) {
-            return $this->assert_true($success, "$message (expected success)");
-        } else {
-            return $this->assert_false($success, "$message (expected failure)");
-        }
-        // return $this->assert_equals($expect_success, $success, $message);
+        // Use assert_form_submission for proper error reporting
+        return $this->assert_form_submission(
+            home_url('login'),
+            ['email' => $email, 'password' => $password],
+            'Dashboard', // Expected content on successful login
+            $message,
+            $expect_success
+        );
     }
     
     /**
