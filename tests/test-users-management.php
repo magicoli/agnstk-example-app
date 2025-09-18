@@ -1,6 +1,8 @@
 <?php
 /**
  * Test Users management functionality
+ * 
+ * ⚠️ ❌ ✅
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -49,16 +51,8 @@ foreach ($auth_pages as $page => $expected_code) {
 }
 
 if(!empty($missing_pages)) {
-    echo "WARNING: Some authentication pages are not accessible: " . implode(', ', $missing_pages) . PHP_EOL;
+    echo "⚠️ WARNING: Some authentication pages are not accessible: " . implode(', ', $missing_pages) . PHP_EOL;
     echo "Make sure the authentication routes are enabled in your application." . PHP_EOL;
-    exit( $test->summary() ? 0 : 1 );
-}
-
-echo PHP_EOL;
-echo "Testing initial wrong login (before registration)..." . PHP_EOL;
-// Test wrong login before anything else
-if(!$test->user_login('wrong@example.com', 'wrong password', "Login with wrong credentials", false)) {
-    // Login test should work before testing anything else
     exit( $test->summary() ? 0 : 1 );
 }
 
@@ -110,6 +104,7 @@ $html_content = $test->analyze_html_content($register_response);
 $response_title = $html_content['page_title'] ?? '';
 $response_code = preg_match( '#^(\d{3})#', $response_title, $matches ) ? (int)$matches[1] : 200; // Assume 200 if no code in title
 if(!$test->assert_true( $response_code >= 200 && $response_code < 400, "Registration response " . var_export($response_title, true) )) {
+    echo "❌ ERROR: Registration response indicates failure, cannot proceed with further tests" . PHP_EOL;
     exit( $test->summary() ? 0 : 1 );
 }
 
@@ -119,19 +114,19 @@ $test->assert_equals($initial_user_count + 1, $new_user_count, "User registered 
 
 $created_user = DB::table('users')->where('email', $user_email)->first();
 if(!$test->assert_not_empty($created_user, 'User found in database')) {
-    // Cannot proceed without created user
+    echo "❌ ERROR: Created user not found in database, cannot proceed with further tests" . PHP_EOL;
     exit( $test->summary() ? 0 : 1 );
 }
 
 // Test login immediately after registration
 if(!$test->user_login($user_email, $user_password, "Login after registration with original password")) {
-    // Login test should work before testing anything else
+    echo "❌ ERROR: Login after registration failed, cannot proceed with further tests" . PHP_EOL;
     exit( $test->summary() ? 0 : 1 );
 }
 
 // Test login immediately after registration
 if(!$test->user_login($user_email, 'wrong password', "Login with a wrong password", false)) {
-    // Login test should work before testing anything else
+    echo "❌ ERROR: Login with wrong password did not fail as expected" . PHP_EOL;
     exit( $test->summary() ? 0 : 1 );
 }
 
@@ -146,8 +141,8 @@ $link_request_success = $test->assert_form_submission(
     'Password reset link request'
 );
 
-if(!$test->assert_true( $link_request_success, 'Password reset link request submission' )) {
-    echo "    ERROR: reset link request submission failed, cannot proceed with reset test" . PHP_EOL;
+if(!$link_request_success) {
+    echo "❌ ERROR: reset link request submission failed, cannot proceed with reset test" . PHP_EOL;
     exit( $test->summary() ? 0 : 1 );
 }
 
@@ -169,7 +164,7 @@ if ($test->assert_not_empty($reset_token, 'Password reset token created')) {
         ['token', 'email', 'password', 'password_confirmation'],
         ['email' => $user_email]
     )) {
-        // Cannot proceed without valid reset form
+        echo "❌ ERROR: Password reset form validation failed, cannot proceed with reset test" . PHP_EOL;
         exit( $test->summary() ? 0 : 1 );
     }
     

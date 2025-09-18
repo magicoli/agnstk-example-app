@@ -523,7 +523,7 @@ class SimpleTest {
             foreach ($success_elements as $success_element) {
                 $success_text = trim($success_element->textContent);
                 if (!empty($success_text)) {
-                    echo "        Success message: " . var_export($success_text, true) . PHP_EOL;
+                    $notifications[] = "Success message: " . var_export($success_text, true);
                 }
             }
         }
@@ -534,7 +534,7 @@ class SimpleTest {
             foreach ($error_elements as $error_element) {
                 $error_text = trim($error_element->textContent);
                 if (!empty($error_text)) {
-                    echo "        Error message: " . var_export($error_text, true) . PHP_EOL;
+                    $notifications[] = "Error message: " . var_export($error_text, true);
                 }
             }
             $success = false;
@@ -545,7 +545,7 @@ class SimpleTest {
                 foreach ($invalid_fields as $field) {
                     $field_name = $field->getAttribute('name') ?: $field->getAttribute('id') ?: 'unnamed';
                     $field_type = $field->nodeName;
-                    echo "        Invalid field: " . $field_name . PHP_EOL;
+                    $notifications[] = "Invalid field: " . $field_name;
                 }
                 $success = false;
             }
@@ -571,10 +571,16 @@ class SimpleTest {
         }
 
         if($expect_success) {
-            return $this->assert_true($success, "$message");
+            $test_success = $this->assert_true($success, "$message");
         } else {
-            return $this->assert_false($success, "$message (expected failure)");
+            $test_success = $this->assert_false($success, "$message (expected failure)");
         }
+        if(!empty($notifications)) {
+            foreach($notifications as $note) {
+                echo "        $note" . PHP_EOL;
+            }
+        }
+        return $test_success;
     }
     
     /**
