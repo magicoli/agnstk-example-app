@@ -422,6 +422,9 @@ class SimpleTest {
             return false;
         }
         
+        // Extract form action URL
+        $form_action_url = self::get_attribute($form_html, '//form', 'action') ?: $url;
+        
         // Extract original form ID to detect if we stay on same form
         $parsed_html = self::parse_html($form_html);
         $original_form_id = null;
@@ -436,9 +439,9 @@ class SimpleTest {
         // Add CSRF token to form data
         $form_data['_token'] = $csrf_token;
         
-        echo "  Submitting to $url" . PHP_EOL;
-        echo "  Form data: " . json_encode($form_data, JSON_PRETTY_PRINT) . PHP_EOL;
-        echo "  Session cookies: " . ($this->session_cookies ?: '(none)') . PHP_EOL;
+        // echo "  Submitting to $url" . PHP_EOL;
+        // echo "  Form data: " . json_encode($form_data, JSON_PRETTY_PRINT) . PHP_EOL;
+        // echo "  Session cookies: " . ($this->session_cookies ?: '(none)') . PHP_EOL;
         
         // Submit form
         $context = stream_context_create([
@@ -455,18 +458,35 @@ class SimpleTest {
             ]
         ]);
         
-        $response = $this->get_content($url, false, $context);
+        try {
+            $response = $this->get_content($form_action_url, false, $context);
+        } catch (Exception $e) {
+            return $this->assert_false(true, "$message - Exception during form submission: " . $e->getMessage());
+        }
+        
         if (!$this->assert_not_empty($response, "Form submission response received")) {
             return false;
         }
         
-        // Debug: Check if this is actually a successful POST or a redirect back to GET
+        // Check for HTTP error codes (500, 404, etc.)
+        try {
+            $response_info = $this->get_last_response_info();
+        } catch (Error $e) {
+            return $this->assert_false(true, "$message - Error getting response info: " . $e->getMessage());
+        } catch (Exception $e) {
+            return $this->assert_false(true, "$message - Exception getting response info: " . $e->getMessage());
+        }
         $response_info = $this->get_last_response_info();
         if ($response_info) {
-            // Check for successful login redirect (302/301 status codes)
             $http_code = $response_info['http_code'] ?? 0;
-            if ($http_code >= 300 && $http_code < 400) {
-                return $this->assert_true(true, $message . " (redirect detected)");
+            
+            // Handle HTTP error codes
+            if ($http_code >= 500) {
+                return $this->assert_false(true, "$message - Server error (HTTP $http_code)");
+            } elseif ($http_code >= 400) {
+                return $this->assert_false(true, "$message - Client error (HTTP $http_code)");
+            } elseif ($http_code >= 300 && $http_code < 400) {
+                return $this->assert_true(true, $message . " (redirect {$response_info['redirect_url']})");
             }
         }
         
@@ -476,17 +496,31 @@ class SimpleTest {
         $page_title = $html_content['page_title'] ?? '';
         $head_title = $html_content['head_title'] ?? '';
 
-        // Check for Laravel validation errors
+        // Check for Laravel validation errors and success messages
         $parsed_response = self::parse_html($response);
         if ($parsed_response) {
             $response_xpath = new DOMXPath($parsed_response);
+            
             // Look for validation errors in multiple formats (div, span, p, etc.)
             $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
             if ($error_elements->length > 0) {
+                echo "  Errors found:" . PHP_EOL;
                 foreach ($error_elements as $error_element) {
                     $error_text = trim($error_element->textContent);
                     if (!empty($error_text)) {
                         echo "    - " . $error_text . PHP_EOL;
+                    }
+                }
+            }
+            
+            // Look for success messages
+            $success_elements = $response_xpath->query('//*[contains(@class, "alert-success") or contains(@class, "success")]');
+            if ($success_elements->length > 0) {
+                echo "  Success messages found:" . PHP_EOL;
+                foreach ($success_elements as $success_element) {
+                    $success_text = trim($success_element->textContent);
+                    if (!empty($success_text)) {
+                        echo "    + " . $success_text . PHP_EOL;
                     }
                 }
             }
@@ -508,13 +542,13 @@ class SimpleTest {
                 if ($response_form) {
                     $still_on_form = true;
                 } else {
-                    // Check for any form with similar action or common login form patterns
-                    $login_forms = $response_xpath->query('//form[contains(@action, "login") or .//input[@name="email"] or .//input[@name="password"]]');
-                    if ($login_forms->length > 0) {
+                    // Check for any form that might be the same form (failed submission returns to form)
+                    $similar_forms = $response_xpath->query('//form');
+                    if ($similar_forms->length > 0) {
                         $still_on_form = true;
-                        echo "  DEBUG: Still on login-like form - submission failed" . PHP_EOL;
+                        echo "  DEBUG: Form found - submission may have failed" . PHP_EOL;
                     } else {
-                        echo "  DEBUG: No original form found - might have succeeded but no success indicator" . PHP_EOL;
+                        echo "  DEBUG: No form found - might have succeeded but no success indicator" . PHP_EOL;
                         // Could be success but without the expected indicator
                         $success = true;
                     }
@@ -538,10 +572,13 @@ class SimpleTest {
      * @param string $message Test description
      * @return bool True if login appears successful
      */
-    public function user_login($email, $password, $message = '') {
+    public function user_login($email, $password, $message = '', $expect_success = true) {
         if (empty($message)) {
             $message = "Login with $email";
         }
+        
+        // Clear session cookies for fresh login attempt
+        $this->session_cookies = '';
         
         // Check if login page has form (might already be logged in)
         $login_html = $this->get_content(home_url('login'));
@@ -558,15 +595,139 @@ class SimpleTest {
             $is_dashboard = (stripos($main_content, 'Dashboard') !== false) || 
                             (stripos($page_title, 'Dashboard') !== false) || 
                             (stripos($head_title, 'Dashboard') !== false);
-            return $this->assert_true($is_dashboard, "$message ('$head_title')");
+            if($expect_success) {
+                return $this->assert_true($is_dashboard, "$message ('$head_title')");
+            } else {
+                return $this->assert_false($is_dashboard, "$message - expected failure ('$head_title')");
+            }
         }
         
-        return $this->assert_form_submission(
-            home_url('login'),
-            ['email' => $email, 'password' => $password],
-            'Dashboard',
-            $message
-        );
+        // Custom login form submission with login-specific logic
+        $url = home_url('login');
+        $form_data = ['email' => $email, 'password' => $password];
+        $expected_success_indicator = 'Dashboard';
+        
+        // Extract original form ID to detect if we stay on same form
+        $parsed_html = self::parse_html($login_html);
+        $original_form_id = null;
+        if ($parsed_html) {
+            $xpath = new DOMXPath($parsed_html);
+            $form_node = $xpath->query('//form')->item(0);
+            if ($form_node) {
+                $original_form_id = $form_node->getAttribute('id') ?: 'form';
+            }
+        }
+        
+        // Add CSRF token to form data
+        $form_data['_token'] = $csrf_token;
+        
+        // echo "  Submitting to $url" . PHP_EOL;
+        // echo "  Form data: " . json_encode($form_data, JSON_PRETTY_PRINT) . PHP_EOL;
+        // echo "  Session cookies: " . ($this->session_cookies ?: '(none)') . PHP_EOL;
+        
+        // Submit form
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => [
+                    'Content-Type: application/x-www-form-urlencoded',
+                    'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: en-US,en;q=0.5',
+                    'Referer: https://dev.agnstk.com/agnstk-example-app/login'
+                ],
+                'content' => http_build_query($form_data)
+            ]
+        ]);
+        
+        $response = $this->get_content($url, false, $context);
+        if (!$this->assert_not_empty($response, "Form submission response received")) {
+            return false;
+        }
+        
+        // Check for redirect and determine success based on destination
+        $response_info = $this->get_last_response_info();
+        if ($response_info) {
+            $http_code = $response_info['http_code'] ?? 0;
+            if ($http_code >= 300 && $http_code < 400) {
+                $redirect_url = $response_info['redirect_url'] ?? '';
+                // Check if redirect goes to dashboard (success) or back to login (failure)
+                $is_success_redirect = stripos($redirect_url, '/dashboard') !== false || 
+                                     stripos($redirect_url, '/user') !== false ||
+                                     stripos($redirect_url, '/home') !== false;
+                $is_failure_redirect = stripos($redirect_url, '/login') !== false;
+                
+                if ($expect_success) {
+                    return $this->assert_true($is_success_redirect, $message . " (redirect $redirect_url)");
+                } else {
+                    return $this->assert_true($is_failure_redirect, $message . " - expected failure (redirect $redirect_url)");
+                }
+            }
+        }
+        
+        // Check for success indicator
+        $html_content = $this->analyze_html_content($response);
+        $main_content = $html_content['main_content'] ?? '';
+        $page_title = $html_content['page_title'] ?? '';
+        $head_title = $html_content['head_title'] ?? '';
+
+        // Check for Laravel validation errors
+        $parsed_response = self::parse_html($response);
+        if ($parsed_response) {
+            $response_xpath = new DOMXPath($parsed_response);
+            $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
+            if ($error_elements->length > 0) {
+                foreach ($error_elements as $error_element) {
+                    $error_text = trim($error_element->textContent);
+                    if (!empty($error_text)) {
+                        echo "    - " . $error_text . PHP_EOL;
+                    }
+                }
+            }
+        }
+
+        // Look for success indicator in any content
+        $success = (stripos($main_content, $expected_success_indicator) !== false) || 
+                   (stripos($page_title, $expected_success_indicator) !== false) ||
+                   (stripos($head_title, $expected_success_indicator) !== false);
+        
+        // If success indicator not found, check if we're still on login form (login-specific logic)
+        if (!$success) {
+            $response_parsed = self::parse_html($response);
+            $still_on_form = false;
+            
+            if ($response_parsed && $original_form_id) {
+                $response_xpath = new DOMXPath($response_parsed);
+                $response_form = $response_xpath->query("//form[@id='$original_form_id']")->item(0);
+                if ($response_form) {
+                    $still_on_form = true;
+                } else {
+                    // Check for any form with similar action or common login form patterns (login-specific)
+                    $login_forms = $response_xpath->query('//form[contains(@action, "login") or .//input[@name="email"] or .//input[@name="password"]]');
+                    if ($login_forms->length > 0) {
+                        $still_on_form = true;
+                        echo "  DEBUG: Still on login-like form - submission failed" . PHP_EOL;
+                    } else {
+                        echo "  DEBUG: No original form found - might have succeeded but no success indicator" . PHP_EOL;
+                        // Could be success but without the expected indicator
+                        $success = true;
+                    }
+                }
+            } else {
+                echo "  DEBUG: Could not parse response or determine form status" . PHP_EOL;
+            }
+            
+            if ($still_on_form) {
+                $success = false;
+            }
+        }
+        
+        if($expect_success) {
+            return $this->assert_true($success, "$message (expected success)");
+        } else {
+            return $this->assert_false($success, "$message (expected failure)");
+        }
+        // return $this->assert_equals($expect_success, $success, $message);
     }
     
     /**
@@ -753,6 +914,20 @@ class SimpleTest {
         }
         
         return false;
+    }
+
+    public static function get_attribute($html_content, $xpath_query, $attribute) {
+        $parsed_html = self::parse_html($html_content);
+        if (!$parsed_html) {
+            return false;
+        }
+        
+        $xpath = new DOMXPath($parsed_html);
+        $nodes = $xpath->query($xpath_query);
+        
+        if($nodes->length > 0) {
+            return trim($nodes->item(0)->getAttribute($attribute));
+        }
     }
 
     /**

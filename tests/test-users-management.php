@@ -54,6 +54,14 @@ if(!empty($missing_pages)) {
     exit( $test->summary() ? 0 : 1 );
 }
 
+echo PHP_EOL;
+echo "Testing initial wrong login (before registration)..." . PHP_EOL;
+// Test wrong login before anything else
+if(!$test->user_login('wrong@example.com', 'wrong password', "Login with wrong credentials", false)) {
+    // Login test should work before testing anything else
+    exit( $test->summary() ? 0 : 1 );
+}
+
 // Generate unique test user data
 $random_id = strtolower(random_string(8));
 $user_name = 'Test User ' . $random_id;
@@ -116,54 +124,40 @@ if(!$test->assert_not_empty($created_user, 'User found in database')) {
 }
 
 // Test login immediately after registration
-echo PHP_EOL . "Testing login after registration..." . PHP_EOL;
 if(!$test->user_login($user_email, $user_password, "Login after registration with original password")) {
     // Login test should work before testing anything else
     exit( $test->summary() ? 0 : 1 );
 }
 
-// Test password reset request
-echo PHP_EOL . "Testing password reset..." . PHP_EOL;
-$reset_form = $test->get_content(home_url('password/reset'));
-
-// Validate the password email request form using assert_valid_form
-if (!$test->assert_valid_form(
-    $reset_form,
-    'password-email',  // The form ID you added
-    ['_token', 'email'], // Required fields
-    [] // No specific values to check
-)) {
-    echo "Password reset form validation failed, skipping password reset tests" . PHP_EOL;
-    exit($test->summary() ? 0 : 1);
+// Test login immediately after registration
+if(!$test->user_login($user_email, 'wrong password', "Login with a wrong password", false)) {
+    // Login test should work before testing anything else
+    exit( $test->summary() ? 0 : 1 );
 }
 
-// DEBUG STOP
-exit($test->summary() ? 0 : 1 );
+echo PHP_EOL;
+echo "Testing password reset workflow..." . PHP_EOL;
+// Test password reset link request using assert_form_submission
+$link_request_url = home_url('password/reset');
+$link_request_success = $test->assert_form_submission(
+    $link_request_url,
+    [ 'email' => $user_email ],
+    'alert-success', // Expected success string
+    'Password reset link request'
+);
 
-$reset_csrf_token = $test::get_csrf_token($reset_form);
-$test->assert_not_empty($reset_csrf_token, "Reset form CSRF token ($reset_csrf_token)");
-
-$reset_context = stream_context_create([
-    'http' => [
-        'method' => 'POST',
-        'header' => 'Content-type: application/x-www-form-urlencoded',
-        'content' => http_build_query([
-            '_token' => $reset_csrf_token,
-            'email' => $user_email
-        ])
-    ]
-]);
-
-$reset_response = $test->get_content(home_url('password/email'), false, $reset_context);
-// Use assert_valid_form to check for success or validation errors
-
-$test->assert_not_empty($reset_response, 'Password reset request submitted');
+if(!$test->assert_true( $link_request_success, 'Password reset link request submission' )) {
+    echo "    ERROR: reset link request submission failed, cannot proceed with reset test" . PHP_EOL;
+    exit( $test->summary() ? 0 : 1 );
+}
 
 // Check for reset token and complete password reset
 $reset_token = DB::table('password_reset_tokens')->where('email', $user_email)->first();
 
 if ($test->assert_not_empty($reset_token, 'Password reset token created')) {
     echo "Reset token: " . substr($reset_token->token, 0, 10) . "..." . PHP_EOL;
+
+    exit( $test->summary() ? 0 : 1 ); // DEBUG STOP HERE
     
     // Test reset form with token
     $reset_form_response = $test->get_content(home_url('password/reset/' . $reset_token->token));
@@ -218,6 +212,8 @@ if ($test->assert_not_empty($reset_token, 'Password reset token created')) {
         // $used_token = DB::table('password_reset_tokens')->where('email', $user_email)->first();
         // $test->assert_empty($used_token, 'Reset token consumed after successful use');
     }
+} else {
+    echo "WARNING: No reset token found, cannot complete password reset test" . PHP_EOL;
 }
 
 # DEBUG STOP here for now
