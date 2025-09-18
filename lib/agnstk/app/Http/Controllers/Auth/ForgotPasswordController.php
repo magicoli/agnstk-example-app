@@ -47,8 +47,15 @@ class ForgotPasswordController extends Controller {
             \Log::error('Password reset email failed: ' . $e->getMessage());
             
             // Return with error message instead of crashing
+            $error_message = 'Unable to send password reset email. Please try again later or contact support.';
+            
+            // In testing environment, include debug information in the main error message
+            if (app()->environment('testing', 'local')) {
+                $error_message .= PHP_EOL . 'Debug info: ' . $e->getMessage();
+            }
+            
             return back()->withErrors([
-                'email' => 'Unable to send password reset email. Please try again later or contact support.'
+                'email' => $error_message
             ]);
         }
     }

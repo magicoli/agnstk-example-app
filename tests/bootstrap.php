@@ -126,6 +126,30 @@ class SimpleTest {
     }
 
     /**
+     * Check if one of the patterns is included in a string
+     * 
+     * @param array $patterns Array of patterns (strings or regex patterns starting with '/')
+     * @param string $string The text to search in
+     */
+    public static function contains_pattern( $patterns, $string) {
+        foreach ($patterns as $pattern) {
+            if (strpos($pattern, '/') === 0) {
+                // Regex pattern
+                if (preg_match($pattern, $string)) {
+                    return true;
+                }
+            } else {
+                // Simple substring match (case-insensitive)
+                if (stripos($string, $pattern) !== false) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    
+
+    /**
      * Check if a string matches any of the given patterns
      * Supports both string and regex patterns (regex patterns start with '/')
      * 
@@ -528,16 +552,27 @@ class SimpleTest {
             }
         }
 
+        $expected_testing_errors = array(
+            "Recipient address rejected: Domain example.com does not accept mail",
+            "Invalid address: test-", // Test emails with example.com domain or test- prefix
+            "/Domain example\.com does not accept mail/i", // Regex for variations
+            "/test-.*@example\.com.*invalid/i", // Test email patterns that are expected to fail
+        );
+
         // Look for validation errors in multiple formats and classes
         $error_elements = $response_xpath->query('//*[contains(@class, "alert-danger") or contains(@class, "alert-warning") or contains(@class, "invalid-feedback") or contains(@class, "error") or contains(@class, "text-danger")]');
         if ($error_elements->length > 0) {
             foreach ($error_elements as $error_element) {
                 $error_text = trim($error_element->textContent);
+                // First if in expected errors, only add notification, without marking as failure
+                $is_expected = self::contains_pattern($expected_testing_errors, $error_text);
                 if (!empty($error_text)) {
-                    $notifications[] = "Error message: " . var_export($error_text, true);
+                    $notifications[] = "Error message" . ($is_expected ? ' (expected)' : '') . ": " . var_export($error_text, true);
+                }
+                if(!$is_expected) {
+                    $success = false;
                 }
             }
-            $success = false;
         } else {
             // Look for invalid form fields (fields with is-invalid class)
             $invalid_fields = $response_xpath->query('//input[contains(@class, "is-invalid")] | //select[contains(@class, "is-invalid")] | //textarea[contains(@class, "is-invalid")]');
