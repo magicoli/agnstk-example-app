@@ -6,7 +6,7 @@
 [subrepo]
 	remote = git@github.com:magicoli/agnstk.git
 	branch = master
-	commit = f2dec8a1e318a1dc65fe28eca130d7a58967eb71
-	parent = 35211f39a340d43e87d32745e66a2f710d3144f0
+	commit = 13a7f7afc363419eb4319033041fa7a35f3c1139
+	parent = 2fe6ab7dc81ff81b4fff689b0f6189bac1a96950
 	method = merge
 	cmdver = 0.4.9
